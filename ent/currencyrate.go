@@ -3,9 +3,9 @@
 package ent
 
 import (
-	"MyBank-Go-Backend/ent/bank"
-	"MyBank-Go-Backend/ent/currencyrate"
 	"fmt"
+	"mybanks-api/ent/bank"
+	"mybanks-api/ent/currencyrate"
 	"strings"
 
 	"entgo.io/ent"

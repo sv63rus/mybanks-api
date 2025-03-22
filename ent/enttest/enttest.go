@@ -5,11 +5,11 @@ package enttest
 import (
 	"context"
 
-	"MyBank-Go-Backend/ent"
+	"mybanks-api/ent"
 	// required by schema hooks.
-	_ "MyBank-Go-Backend/ent/runtime"
+	_ "mybanks-api/ent/runtime"
 
-	"MyBank-Go-Backend/ent/migrate"
+	"mybanks-api/ent/migrate"
 
 	"entgo.io/ent/dialect/sql/schema"
 )

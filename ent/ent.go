@@ -3,12 +3,12 @@
 package ent
 
 import (
-	"MyBank-Go-Backend/ent/bank"
-	"MyBank-Go-Backend/ent/currencyrate"
-	"MyBank-Go-Backend/ent/offer"
 	"context"
 	"errors"
 	"fmt"
+	"mybanks-api/ent/bank"
+	"mybanks-api/ent/currencyrate"
+	"mybanks-api/ent/offer"
 	"reflect"
 	"sync"
 

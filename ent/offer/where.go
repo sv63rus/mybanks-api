@@ -3,7 +3,7 @@
 package offer
 
 import (
-	"MyBank-Go-Backend/ent/predicate"
+	"mybanks-api/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

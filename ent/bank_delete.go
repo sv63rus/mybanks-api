@@ -3,9 +3,9 @@
 package ent
 
 import (
-	"MyBank-Go-Backend/ent/bank"
-	"MyBank-Go-Backend/ent/predicate"
 	"context"
+	"mybanks-api/ent/bank"
+	"mybanks-api/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

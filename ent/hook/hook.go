@@ -3,9 +3,9 @@
 package hook
 
 import (
-	"MyBank-Go-Backend/ent"
 	"context"
 	"fmt"
+	"mybanks-api/ent"
 )
 
 // The BankFunc type is an adapter to allow the use of ordinary

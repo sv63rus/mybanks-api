@@ -1,25 +1,55 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"entgo.io/ent/dialect"
+	"github.com/gofiber/fiber/v2"
+	_ "github.com/mattn/go-sqlite3"
+	"log"
+	"mybanks-api/ent"
+	"os"
 )
 
-//TIP To run your code, right-click the code and select <b>Run</b>. Alternatively, click
-// the <icon src="AllIcons.Actions.Execute"/> icon in the gutter and select the <b>Run</b> menu item from here.
-
 func main() {
-	//TIP Press <shortcut actionId="ShowIntentionActions"/> when your caret is at the underlined or highlighted text
-	// to see how GoLand suggests fixing it.
-	s := "gopher"
-	fmt.Println("Hello and welcome, %s!", s)
+	// Инициализация контекста
+	ctx := context.Background()
 
-	for i := 1; i <= 5; i++ {
-		//TIP You can try debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-		// for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>. To start your debugging session,
-		// right-click your code in the editor and select the <b>Debug</b> option.
-		fmt.Println("i =", 100/i)
+	// Подключение к БД (можешь заменить на Postgres, MySQL и т.д.)
+	client, err := ent.Open(dialect.SQLite, "file:myapp.db?cache=shared&_fk=1")
+	if err != nil {
+		log.Fatalf("❌ Failed opening connection to sqlite: %v", err)
 	}
-}
+	defer client.Close()
 
-//TIP See GoLand help at <a href="https://www.jetbrains.com/help/go/">jetbrains.com/help/go/</a>.
-// Also, you can try interactive lessons for GoLand by selecting 'Help | Learn IDE Features' from the main menu.
+	// Автоматическая миграция схемы
+	if err := client.Schema.Create(ctx); err != nil {
+		log.Fatalf("❌ Failed creating schema resources: %v", err)
+	}
+
+	// Запуск Fiber-приложения
+	app := fiber.New()
+
+	// Middleware
+	app.Use(func(c *fiber.Ctx) error {
+		c.Set("Content-Type", "application/json")
+		return c.Next()
+	})
+
+	// Базовый healthcheck
+	app.Get("/api/v1/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"status": "ok",
+		})
+	})
+
+	// Подключение роутов (позже)
+	// handler.RegisterBankRoutes(app, client)
+
+	// Запуск
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	log.Printf("🚀 Server listening on http://localhost:%s", port)
+	log.Fatal(app.Listen(":" + port))
+}

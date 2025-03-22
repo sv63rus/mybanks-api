@@ -3,11 +3,11 @@
 package ent
 
 import (
-	"MyBank-Go-Backend/ent/bank"
-	"MyBank-Go-Backend/ent/currencyrate"
 	"context"
 	"errors"
 	"fmt"
+	"mybanks-api/ent/bank"
+	"mybanks-api/ent/currencyrate"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"

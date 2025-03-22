@@ -3,8 +3,8 @@
 package ent
 
 import (
-	"MyBank-Go-Backend/ent/bank"
 	"fmt"
+	"mybanks-api/ent/bank"
 	"strings"
 
 	"entgo.io/ent"

@@ -3,14 +3,14 @@
 package ent
 
 import (
-	"MyBank-Go-Backend/ent/bank"
-	"MyBank-Go-Backend/ent/currencyrate"
-	"MyBank-Go-Backend/ent/offer"
-	"MyBank-Go-Backend/ent/predicate"
 	"context"
 	"database/sql/driver"
 	"fmt"
 	"math"
+	"mybanks-api/ent/bank"
+	"mybanks-api/ent/currencyrate"
+	"mybanks-api/ent/offer"
+	"mybanks-api/ent/predicate"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
