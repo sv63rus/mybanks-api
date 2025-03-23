@@ -1,4 +1,4 @@
-.PHONY: generate enrich openapi
+.PHONY: generate enrich openapi genroutes
 
 generate:
 	@echo "🔧 Generating Ent client + OpenAPI JSON spec..."
@@ -13,7 +13,7 @@ enrich: generate
     "version": "1.0.0" \
   } | \
   .servers = [{ \
-    "url": "http://127.0.0.1:3001/api/v1", \
+    "url": "http://127.0.0.1:8080/api/v1", \
     "description": "Локальный сервер (по умолчанию)" \
   }]' ent/openapi.json
 
@@ -21,5 +21,13 @@ enrich: generate
 
 openapi: enrich
 	@echo "🔁 Converting enriched JSON to YAML..."
-	yq eval -P ent/openapi.json > docs/openapi.generated.yaml
+	yq -P -o=yaml ent/openapi.json > api/openapi.yaml
 	@echo "✅ docs/openapi.generated.yaml created from enriched JSON"
+
+genapi:
+	@echo "Start routes gen"
+	ogen \
+      -target ./api/gen \
+      -clean \
+      -package gen \
+      ./api/openapi.yaml
