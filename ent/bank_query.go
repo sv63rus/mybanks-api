@@ -21,12 +21,16 @@ import (
 // BankQuery is the builder for querying Bank entities.
 type BankQuery struct {
 	config
-	ctx               *QueryContext
-	order             []bank.OrderOption
-	inters            []Interceptor
-	predicates        []predicate.Bank
-	withCurrencyRates *CurrencyRateQuery
-	withOffers        *OfferQuery
+	ctx                    *QueryContext
+	order                  []bank.OrderOption
+	inters                 []Interceptor
+	predicates             []predicate.Bank
+	withCurrencyRates      *CurrencyRateQuery
+	withOffers             *OfferQuery
+	modifiers              []func(*sql.Selector)
+	loadTotal              []func(context.Context, []*Bank) error
+	withNamedCurrencyRates map[string]*CurrencyRateQuery
+	withNamedOffers        map[string]*OfferQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -421,6 +425,9 @@ func (bq *BankQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Bank, e
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(bq.modifiers) > 0 {
+		_spec.Modifiers = bq.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -441,6 +448,25 @@ func (bq *BankQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Bank, e
 		if err := bq.loadOffers(ctx, query, nodes,
 			func(n *Bank) { n.Edges.Offers = []*Offer{} },
 			func(n *Bank, e *Offer) { n.Edges.Offers = append(n.Edges.Offers, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range bq.withNamedCurrencyRates {
+		if err := bq.loadCurrencyRates(ctx, query, nodes,
+			func(n *Bank) { n.appendNamedCurrencyRates(name) },
+			func(n *Bank, e *CurrencyRate) { n.appendNamedCurrencyRates(name, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range bq.withNamedOffers {
+		if err := bq.loadOffers(ctx, query, nodes,
+			func(n *Bank) { n.appendNamedOffers(name) },
+			func(n *Bank, e *Offer) { n.appendNamedOffers(name, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for i := range bq.loadTotal {
+		if err := bq.loadTotal[i](ctx, nodes); err != nil {
 			return nil, err
 		}
 	}
@@ -512,6 +538,9 @@ func (bq *BankQuery) loadOffers(ctx context.Context, query *OfferQuery, nodes []
 
 func (bq *BankQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := bq.querySpec()
+	if len(bq.modifiers) > 0 {
+		_spec.Modifiers = bq.modifiers
+	}
 	_spec.Node.Columns = bq.ctx.Fields
 	if len(bq.ctx.Fields) > 0 {
 		_spec.Unique = bq.ctx.Unique != nil && *bq.ctx.Unique
@@ -589,6 +618,34 @@ func (bq *BankQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// WithNamedCurrencyRates tells the query-builder to eager-load the nodes that are connected to the "currency_rates"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (bq *BankQuery) WithNamedCurrencyRates(name string, opts ...func(*CurrencyRateQuery)) *BankQuery {
+	query := (&CurrencyRateClient{config: bq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if bq.withNamedCurrencyRates == nil {
+		bq.withNamedCurrencyRates = make(map[string]*CurrencyRateQuery)
+	}
+	bq.withNamedCurrencyRates[name] = query
+	return bq
+}
+
+// WithNamedOffers tells the query-builder to eager-load the nodes that are connected to the "offers"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (bq *BankQuery) WithNamedOffers(name string, opts ...func(*OfferQuery)) *BankQuery {
+	query := (&OfferClient{config: bq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if bq.withNamedOffers == nil {
+		bq.withNamedOffers = make(map[string]*OfferQuery)
+	}
+	bq.withNamedOffers[name] = query
+	return bq
 }
 
 // BankGroupBy is the group-by builder for Bank entities.

@@ -1,5 +1,10 @@
 package schema
 
+import (
+	"entgo.io/contrib/entgql"
+	"entgo.io/ent/schema"
+)
+
 type CurrencyCode string
 
 const (
@@ -14,3 +19,10 @@ const (
 	RUB CurrencyCode = "RUB"
 	UAH CurrencyCode = "UAH"
 )
+
+func (CurrencyCode) Annotations() []schema.Annotation {
+	return []schema.Annotation{
+		entgql.QueryField(),
+		entgql.Mutations(entgql.MutationCreate(), entgql.MutationUpdate()),
+	}
+}

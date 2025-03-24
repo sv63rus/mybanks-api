@@ -1,49 +1,62 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"net/http"
+	"context"
+	"entgo.io/ent/dialect/sql"
 
-	"mybanks-api/api/gen"
+	_ "github.com/lib/pq"
+	"log"
+	"mybanks-api/ent"
+	"mybanks-api/graph"
+	"net/http"
+	"os"
+
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/lru"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/vektah/gqlparser/v2/ast"
 )
 
+const defaultPort = "8080"
+
 func main() {
-	h := &handler{}
 
-	srv, err := gen.NewServer(h)
+	dsn := "postgres://postgres:@localhost:5432/postgres?sslmode=disable"
+
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		log.Fatalf("failed to create server: %v", err)
+		log.Fatalf("failed connecting to postgres: %v", err)
+	}
+	defer db.Close()
+
+	client := ent.NewClient(ent.Driver(db))
+	if err := client.Schema.Create(context.Background()); err != nil {
+		log.Fatalf("failed creating schema: %v", err)
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", withCORS(srv)))
-
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "OK")
-	})
-
-	log.Println("🚀 Server started on :8080")
-	if err := http.ListenAndServe(":8080", mux); err != nil {
-		log.Fatalf("server error: %v", err)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = defaultPort
 	}
-}
 
-func withCORS(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Разрешаем запросы с локального фронта
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
+	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{client}}))
 
-		// OPTIONS-запросы — это preflight, отвечаем сразу
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
+	srv.AddTransport(transport.Options{})
+	srv.AddTransport(transport.GET{})
+	srv.AddTransport(transport.POST{})
 
-		// Передаём управление дальше
-		h.ServeHTTP(w, r)
+	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
+
+	srv.Use(extension.Introspection{})
+	srv.Use(extension.AutomaticPersistedQuery{
+		Cache: lru.New[string](100),
 	})
+
+	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
+	http.Handle("/query", srv)
+
+	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

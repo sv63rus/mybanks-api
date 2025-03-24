@@ -4,20 +4,20 @@
 package main
 
 import (
+	"errors"
 	"log"
 
-	"entgo.io/contrib/entoas"
+	"entgo.io/contrib/entgql"
 	"entgo.io/ent/entc"
 	"entgo.io/ent/entc/gen"
 )
 
 func main() {
-	ex, err := entoas.NewExtension()
-	if err != nil {
-		log.Fatalf("creating entoas extension: %v", err)
+	ex, err := entgql.NewExtension()
+	if !errors.Is(err, nil) {
+		log.Fatalf("Error: failed creating entgql extension: %v", err)
 	}
-	err = entc.Generate("./../ent/schema", &gen.Config{}, entc.Extensions(ex))
-	if err != nil {
-		log.Fatalf("running ent codegen: %v", err)
+	if err := entc.Generate("./schema", &gen.Config{}, entc.Extensions(ex)); !errors.Is(err, nil) {
+		log.Fatalf("Error: failed running ent codegen: %v", err)
 	}
 }

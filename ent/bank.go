@@ -39,6 +39,11 @@ type BankEdges struct {
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
+	// totalCount holds the count of the edges above.
+	totalCount [2]map[string]int
+
+	namedCurrencyRates map[string][]*CurrencyRate
+	namedOffers        map[string][]*Offer
 }
 
 // CurrencyRatesOrErr returns the CurrencyRates value or an error if the edge
@@ -172,6 +177,54 @@ func (b *Bank) String() string {
 	builder.WriteString(b.LogoURL)
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedCurrencyRates returns the CurrencyRates named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (b *Bank) NamedCurrencyRates(name string) ([]*CurrencyRate, error) {
+	if b.Edges.namedCurrencyRates == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := b.Edges.namedCurrencyRates[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (b *Bank) appendNamedCurrencyRates(name string, edges ...*CurrencyRate) {
+	if b.Edges.namedCurrencyRates == nil {
+		b.Edges.namedCurrencyRates = make(map[string][]*CurrencyRate)
+	}
+	if len(edges) == 0 {
+		b.Edges.namedCurrencyRates[name] = []*CurrencyRate{}
+	} else {
+		b.Edges.namedCurrencyRates[name] = append(b.Edges.namedCurrencyRates[name], edges...)
+	}
+}
+
+// NamedOffers returns the Offers named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (b *Bank) NamedOffers(name string) ([]*Offer, error) {
+	if b.Edges.namedOffers == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := b.Edges.namedOffers[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (b *Bank) appendNamedOffers(name string, edges ...*Offer) {
+	if b.Edges.namedOffers == nil {
+		b.Edges.namedOffers = make(map[string][]*Offer)
+	}
+	if len(edges) == 0 {
+		b.Edges.namedOffers[name] = []*Offer{}
+	} else {
+		b.Edges.namedOffers[name] = append(b.Edges.namedOffers[name], edges...)
+	}
 }
 
 // Banks is a parsable slice of Bank.

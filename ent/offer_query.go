@@ -25,6 +25,8 @@ type OfferQuery struct {
 	predicates []predicate.Offer
 	withBank   *BankQuery
 	withFKs    bool
+	modifiers  []func(*sql.Selector)
+	loadTotal  []func(context.Context, []*Offer) error
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -391,6 +393,9 @@ func (oq *OfferQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Offer,
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(oq.modifiers) > 0 {
+		_spec.Modifiers = oq.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -403,6 +408,11 @@ func (oq *OfferQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Offer,
 	if query := oq.withBank; query != nil {
 		if err := oq.loadBank(ctx, query, nodes, nil,
 			func(n *Offer, e *Bank) { n.Edges.Bank = e }); err != nil {
+			return nil, err
+		}
+	}
+	for i := range oq.loadTotal {
+		if err := oq.loadTotal[i](ctx, nodes); err != nil {
 			return nil, err
 		}
 	}
@@ -444,6 +454,9 @@ func (oq *OfferQuery) loadBank(ctx context.Context, query *BankQuery, nodes []*O
 
 func (oq *OfferQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := oq.querySpec()
+	if len(oq.modifiers) > 0 {
+		_spec.Modifiers = oq.modifiers
+	}
 	_spec.Node.Columns = oq.ctx.Fields
 	if len(oq.ctx.Fields) > 0 {
 		_spec.Unique = oq.ctx.Unique != nil && *oq.ctx.Unique

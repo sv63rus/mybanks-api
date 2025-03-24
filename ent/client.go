@@ -32,6 +32,8 @@ type Client struct {
 	CurrencyRate *CurrencyRateClient
 	// Offer is the client for interacting with the Offer builders.
 	Offer *OfferClient
+	// additional fields for node api
+	tables tables
 }
 
 // NewClient creates a new client configured with the given options.

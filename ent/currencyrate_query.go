@@ -25,6 +25,8 @@ type CurrencyRateQuery struct {
 	predicates []predicate.CurrencyRate
 	withBank   *BankQuery
 	withFKs    bool
+	modifiers  []func(*sql.Selector)
+	loadTotal  []func(context.Context, []*CurrencyRate) error
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -391,6 +393,9 @@ func (crq *CurrencyRateQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(crq.modifiers) > 0 {
+		_spec.Modifiers = crq.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -403,6 +408,11 @@ func (crq *CurrencyRateQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 	if query := crq.withBank; query != nil {
 		if err := crq.loadBank(ctx, query, nodes, nil,
 			func(n *CurrencyRate, e *Bank) { n.Edges.Bank = e }); err != nil {
+			return nil, err
+		}
+	}
+	for i := range crq.loadTotal {
+		if err := crq.loadTotal[i](ctx, nodes); err != nil {
 			return nil, err
 		}
 	}
@@ -444,6 +454,9 @@ func (crq *CurrencyRateQuery) loadBank(ctx context.Context, query *BankQuery, no
 
 func (crq *CurrencyRateQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := crq.querySpec()
+	if len(crq.modifiers) > 0 {
+		_spec.Modifiers = crq.modifiers
+	}
 	_spec.Node.Columns = crq.ctx.Fields
 	if len(crq.ctx.Fields) > 0 {
 		_spec.Unique = crq.ctx.Unique != nil && *crq.ctx.Unique
