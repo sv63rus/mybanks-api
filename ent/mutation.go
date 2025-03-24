@@ -40,6 +40,7 @@ type BankMutation struct {
 	country               *string
 	website               *string
 	logo_url              *string
+	test                  *string
 	clearedFields         map[string]struct{}
 	currency_rates        map[int]struct{}
 	removedcurrency_rates map[int]struct{}
@@ -320,6 +321,55 @@ func (m *BankMutation) ResetLogoURL() {
 	delete(m.clearedFields, bank.FieldLogoURL)
 }
 
+// SetTest sets the "test" field.
+func (m *BankMutation) SetTest(s string) {
+	m.test = &s
+}
+
+// Test returns the value of the "test" field in the mutation.
+func (m *BankMutation) Test() (r string, exists bool) {
+	v := m.test
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTest returns the old "test" field's value of the Bank entity.
+// If the Bank object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BankMutation) OldTest(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTest is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTest requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTest: %w", err)
+	}
+	return oldValue.Test, nil
+}
+
+// ClearTest clears the value of the "test" field.
+func (m *BankMutation) ClearTest() {
+	m.test = nil
+	m.clearedFields[bank.FieldTest] = struct{}{}
+}
+
+// TestCleared returns if the "test" field was cleared in this mutation.
+func (m *BankMutation) TestCleared() bool {
+	_, ok := m.clearedFields[bank.FieldTest]
+	return ok
+}
+
+// ResetTest resets all changes to the "test" field.
+func (m *BankMutation) ResetTest() {
+	m.test = nil
+	delete(m.clearedFields, bank.FieldTest)
+}
+
 // AddCurrencyRateIDs adds the "currency_rates" edge to the CurrencyRate entity by ids.
 func (m *BankMutation) AddCurrencyRateIDs(ids ...int) {
 	if m.currency_rates == nil {
@@ -462,7 +512,7 @@ func (m *BankMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BankMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 5)
 	if m.name != nil {
 		fields = append(fields, bank.FieldName)
 	}
@@ -474,6 +524,9 @@ func (m *BankMutation) Fields() []string {
 	}
 	if m.logo_url != nil {
 		fields = append(fields, bank.FieldLogoURL)
+	}
+	if m.test != nil {
+		fields = append(fields, bank.FieldTest)
 	}
 	return fields
 }
@@ -491,6 +544,8 @@ func (m *BankMutation) Field(name string) (ent.Value, bool) {
 		return m.Website()
 	case bank.FieldLogoURL:
 		return m.LogoURL()
+	case bank.FieldTest:
+		return m.Test()
 	}
 	return nil, false
 }
@@ -508,6 +563,8 @@ func (m *BankMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldWebsite(ctx)
 	case bank.FieldLogoURL:
 		return m.OldLogoURL(ctx)
+	case bank.FieldTest:
+		return m.OldTest(ctx)
 	}
 	return nil, fmt.Errorf("unknown Bank field %s", name)
 }
@@ -545,6 +602,13 @@ func (m *BankMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLogoURL(v)
 		return nil
+	case bank.FieldTest:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTest(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Bank field %s", name)
 }
@@ -581,6 +645,9 @@ func (m *BankMutation) ClearedFields() []string {
 	if m.FieldCleared(bank.FieldLogoURL) {
 		fields = append(fields, bank.FieldLogoURL)
 	}
+	if m.FieldCleared(bank.FieldTest) {
+		fields = append(fields, bank.FieldTest)
+	}
 	return fields
 }
 
@@ -601,6 +668,9 @@ func (m *BankMutation) ClearField(name string) error {
 	case bank.FieldLogoURL:
 		m.ClearLogoURL()
 		return nil
+	case bank.FieldTest:
+		m.ClearTest()
+		return nil
 	}
 	return fmt.Errorf("unknown Bank nullable field %s", name)
 }
@@ -620,6 +690,9 @@ func (m *BankMutation) ResetField(name string) error {
 		return nil
 	case bank.FieldLogoURL:
 		m.ResetLogoURL()
+		return nil
+	case bank.FieldTest:
+		m.ResetTest()
 		return nil
 	}
 	return fmt.Errorf("unknown Bank field %s", name)

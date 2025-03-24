@@ -63,6 +63,8 @@ paths:
                   type: string
                 logo_url:
                   type: string
+                test:
+                  type: string
                 currency_rates:
                   type: array
                   items:
@@ -168,6 +170,8 @@ paths:
                 website:
                   type: string
                 logo_url:
+                  type: string
+                test:
                   type: string
                 currency_rates:
                   type: array
@@ -695,6 +699,8 @@ components:
           type: string
         logo_url:
           type: string
+        test:
+          type: string
         currency_rates:
           type: array
           items:
@@ -720,6 +726,8 @@ components:
           type: string
         logo_url:
           type: string
+        test:
+          type: string
       required:
         - id
         - name
@@ -736,6 +744,8 @@ components:
         website:
           type: string
         logo_url:
+          type: string
+        test:
           type: string
       required:
         - id
@@ -754,6 +764,8 @@ components:
           type: string
         logo_url:
           type: string
+        test:
+          type: string
       required:
         - id
         - name
@@ -770,6 +782,8 @@ components:
         website:
           type: string
         logo_url:
+          type: string
+        test:
           type: string
       required:
         - id
@@ -891,6 +905,8 @@ components:
           type: string
         logo_url:
           type: string
+        test:
+          type: string
       required:
         - id
         - name
@@ -990,6 +1006,8 @@ components:
         website:
           type: string
         logo_url:
+          type: string
+        test:
           type: string
       required:
         - id

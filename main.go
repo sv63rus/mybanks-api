@@ -1,15 +1,38 @@
 package main
 
 import (
+	"context"
+	"entgo.io/ent/dialect/sql"
 	"fmt"
+	_ "github.com/lib/pq"
 	"log"
+	"mybanks-api/ent"
+	"mybanks-api/ent/ogent"
+	gen "mybanks-api/ent/ogent"
 	"net/http"
-
-	"mybanks-api/api/gen"
 )
 
 func main() {
-	h := &handler{}
+
+	dsn := "postgres://postgres:@localhost:5432/postgres?sslmode=disable"
+
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		log.Fatalf("failed opening connection to postgres: %v", err)
+	}
+	defer db.Close()
+
+	client := ent.NewClient(ent.Driver(db))
+
+	// Миграции (если нужно)
+	if err := client.Schema.Create(context.Background()); err != nil {
+		log.Fatalf("failed creating schema resources: %v", err)
+	}
+
+	h := &handler{
+		OgentHandler: ogent.NewOgentHandler(client),
+		client:       client,
+	}
 
 	srv, err := gen.NewServer(h)
 	if err != nil {

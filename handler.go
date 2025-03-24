@@ -2,44 +2,85 @@ package main
 
 import (
 	"context"
-	"mybanks-api/api/gen" // путь к сгенерированному пакету
+	"fmt"
+	"mybanks-api/ent"
+	"mybanks-api/ent/bank"
+	"mybanks-api/ent/ogent"     // путь к сгенерированному пакету
+	gen "mybanks-api/ent/ogent" // путь к сгенерированному пакету
 )
 
-type handler struct{}
+type handler struct {
+	*ogent.OgentHandler
+	client *ent.Client
+}
+
+func deref(s *string) string {
+	if s != nil {
+		return *s
+	}
+	return ""
+}
 
 // ListBank реализует GET /banks
 func (h *handler) ListBank(ctx context.Context, params gen.ListBankParams) (gen.ListBankRes, error) {
-	banks := []gen.BankList{
-		{
-			ID:      1,
-			Name:    "Example Bank",
-			Country: "US",
-			Website: gen.OptString{Set: true, Value: "https://examplebank.com"},
-			LogoURL: gen.OptString{Set: true, Value: "https://examplebank.com/logo.png"},
-		},
-		{
-			ID:      2,
-			Name:    "Example Bank GE",
-			Country: "GE",
-			Website: gen.OptString{Set: true, Value: "https://examplebank.ge"},
-			LogoURL: gen.OptString{Set: true, Value: "https://examplebank.ge/logo.png"},
-		},
+	data, err := h.client.Bank.
+		Query().
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed querying data: %w", err)
 	}
 
-	return (*gen.ListBankOKApplicationJSON)(&banks), nil
+	var result []gen.BankList
+	for _, datum := range data {
+		result = append(result, gen.BankList{
+			ID:      int(datum.ID),
+			Name:    datum.Name,
+			Country: datum.Country,
+			Website: gen.OptString{Set: datum.Website != "", Value: deref(&datum.Website)},
+			LogoURL: gen.OptString{Set: datum.LogoURL != "", Value: deref(&datum.LogoURL)},
+		})
+	}
+
+	return (*gen.ListBankOKApplicationJSON)(&result), nil
 }
 
 // ReadBank реализует GET /banks/{id}
 func (h *handler) ReadBank(ctx context.Context, params gen.ReadBankParams) (gen.ReadBankRes, error) {
-	bank := gen.BankRead{
-		ID:      params.ID,
-		Name:    "Example Bank111",
-		Country: "US",
-		Website: gen.OptString{Set: true, Value: "https://examplebank.com"},
-		LogoURL: gen.OptString{Set: true, Value: "https://examplebank.ge/logo.png"},
+
+	bankDetail, err := h.client.Bank.Query().Where(bank.ID(params.ID)).WithOffers().WithCurrencyRates().Only(ctx)
+
+	if nil != err {
+		return nil, err
 	}
 
-	return &bank, nil
+	var offers []gen.OfferRead
+	for _, o := range bankDetail.Edges.Offers {
+		offers = append(offers, gen.OfferRead{
+			ID:          int(o.ID),
+			Type:        o.Type,
+			Description: o.Description,
+			Link:        gen.OptString{Set: o.Link != "", Value: deref(&o.Link)}.Value,
+		})
+	}
+
+	var rates []gen.CurrencyRateRead
+	for _, r := range bankDetail.Edges.CurrencyRates {
+		rates = append(rates, gen.CurrencyRateRead{
+			ID:       int(r.ID),
+			Currency: r.Currency,
+			Rate:     r.Rate,
+		})
+	}
+
+	return &gen.BankReadExtended{
+		ID:            int(bankDetail.ID),
+		Name:          bankDetail.Name,
+		Country:       bankDetail.Country,
+		Website:       gen.OptString{Set: bankDetail.Website != "", Value: deref(&bankDetail.Website)},
+		LogoURL:       gen.OptString{Set: bankDetail.LogoURL != "", Value: deref(&bankDetail.LogoURL)},
+		Offers:        offers,
+		CurrencyRates: rates,
+	}, nil
 }
 
 func (h *handler) CreateBank(ctx context.Context, params *gen.CreateBankReq) (gen.CreateBankRes, error) {

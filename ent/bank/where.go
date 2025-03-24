@@ -74,6 +74,11 @@ func LogoURL(v string) predicate.Bank {
 	return predicate.Bank(sql.FieldEQ(FieldLogoURL, v))
 }
 
+// Test applies equality check predicate on the "test" field. It's identical to TestEQ.
+func Test(v string) predicate.Bank {
+	return predicate.Bank(sql.FieldEQ(FieldTest, v))
+}
+
 // NameEQ applies the EQ predicate on the "name" field.
 func NameEQ(v string) predicate.Bank {
 	return predicate.Bank(sql.FieldEQ(FieldName, v))
@@ -352,6 +357,81 @@ func LogoURLEqualFold(v string) predicate.Bank {
 // LogoURLContainsFold applies the ContainsFold predicate on the "logo_url" field.
 func LogoURLContainsFold(v string) predicate.Bank {
 	return predicate.Bank(sql.FieldContainsFold(FieldLogoURL, v))
+}
+
+// TestEQ applies the EQ predicate on the "test" field.
+func TestEQ(v string) predicate.Bank {
+	return predicate.Bank(sql.FieldEQ(FieldTest, v))
+}
+
+// TestNEQ applies the NEQ predicate on the "test" field.
+func TestNEQ(v string) predicate.Bank {
+	return predicate.Bank(sql.FieldNEQ(FieldTest, v))
+}
+
+// TestIn applies the In predicate on the "test" field.
+func TestIn(vs ...string) predicate.Bank {
+	return predicate.Bank(sql.FieldIn(FieldTest, vs...))
+}
+
+// TestNotIn applies the NotIn predicate on the "test" field.
+func TestNotIn(vs ...string) predicate.Bank {
+	return predicate.Bank(sql.FieldNotIn(FieldTest, vs...))
+}
+
+// TestGT applies the GT predicate on the "test" field.
+func TestGT(v string) predicate.Bank {
+	return predicate.Bank(sql.FieldGT(FieldTest, v))
+}
+
+// TestGTE applies the GTE predicate on the "test" field.
+func TestGTE(v string) predicate.Bank {
+	return predicate.Bank(sql.FieldGTE(FieldTest, v))
+}
+
+// TestLT applies the LT predicate on the "test" field.
+func TestLT(v string) predicate.Bank {
+	return predicate.Bank(sql.FieldLT(FieldTest, v))
+}
+
+// TestLTE applies the LTE predicate on the "test" field.
+func TestLTE(v string) predicate.Bank {
+	return predicate.Bank(sql.FieldLTE(FieldTest, v))
+}
+
+// TestContains applies the Contains predicate on the "test" field.
+func TestContains(v string) predicate.Bank {
+	return predicate.Bank(sql.FieldContains(FieldTest, v))
+}
+
+// TestHasPrefix applies the HasPrefix predicate on the "test" field.
+func TestHasPrefix(v string) predicate.Bank {
+	return predicate.Bank(sql.FieldHasPrefix(FieldTest, v))
+}
+
+// TestHasSuffix applies the HasSuffix predicate on the "test" field.
+func TestHasSuffix(v string) predicate.Bank {
+	return predicate.Bank(sql.FieldHasSuffix(FieldTest, v))
+}
+
+// TestIsNil applies the IsNil predicate on the "test" field.
+func TestIsNil() predicate.Bank {
+	return predicate.Bank(sql.FieldIsNull(FieldTest))
+}
+
+// TestNotNil applies the NotNil predicate on the "test" field.
+func TestNotNil() predicate.Bank {
+	return predicate.Bank(sql.FieldNotNull(FieldTest))
+}
+
+// TestEqualFold applies the EqualFold predicate on the "test" field.
+func TestEqualFold(v string) predicate.Bank {
+	return predicate.Bank(sql.FieldEqualFold(FieldTest, v))
+}
+
+// TestContainsFold applies the ContainsFold predicate on the "test" field.
+func TestContainsFold(v string) predicate.Bank {
+	return predicate.Bank(sql.FieldContainsFold(FieldTest, v))
 }
 
 // HasCurrencyRates applies the HasEdge predicate on the "currency_rates" edge.

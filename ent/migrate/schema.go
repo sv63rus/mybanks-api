@@ -15,6 +15,7 @@ var (
 		{Name: "country", Type: field.TypeString},
 		{Name: "website", Type: field.TypeString, Nullable: true},
 		{Name: "logo_url", Type: field.TypeString, Nullable: true},
+		{Name: "test", Type: field.TypeString, Nullable: true},
 	}
 	// BanksTable holds the schema information for the "banks" table.
 	BanksTable = &schema.Table{

@@ -61,6 +61,20 @@ func (bc *BankCreate) SetNillableLogoURL(s *string) *BankCreate {
 	return bc
 }
 
+// SetTest sets the "test" field.
+func (bc *BankCreate) SetTest(s string) *BankCreate {
+	bc.mutation.SetTest(s)
+	return bc
+}
+
+// SetNillableTest sets the "test" field if the given value is not nil.
+func (bc *BankCreate) SetNillableTest(s *string) *BankCreate {
+	if s != nil {
+		bc.SetTest(*s)
+	}
+	return bc
+}
+
 // AddCurrencyRateIDs adds the "currency_rates" edge to the CurrencyRate entity by IDs.
 func (bc *BankCreate) AddCurrencyRateIDs(ids ...int) *BankCreate {
 	bc.mutation.AddCurrencyRateIDs(ids...)
@@ -172,6 +186,10 @@ func (bc *BankCreate) createSpec() (*Bank, *sqlgraph.CreateSpec) {
 	if value, ok := bc.mutation.LogoURL(); ok {
 		_spec.SetField(bank.FieldLogoURL, field.TypeString, value)
 		_node.LogoURL = value
+	}
+	if value, ok := bc.mutation.Test(); ok {
+		_spec.SetField(bank.FieldTest, field.TypeString, value)
+		_node.Test = value
 	}
 	if nodes := bc.mutation.CurrencyRatesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

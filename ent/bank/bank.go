@@ -20,6 +20,8 @@ const (
 	FieldWebsite = "website"
 	// FieldLogoURL holds the string denoting the logo_url field in the database.
 	FieldLogoURL = "logo_url"
+	// FieldTest holds the string denoting the test field in the database.
+	FieldTest = "test"
 	// EdgeCurrencyRates holds the string denoting the currency_rates edge name in mutations.
 	EdgeCurrencyRates = "currency_rates"
 	// EdgeOffers holds the string denoting the offers edge name in mutations.
@@ -49,6 +51,7 @@ var Columns = []string{
 	FieldCountry,
 	FieldWebsite,
 	FieldLogoURL,
+	FieldTest,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -87,6 +90,11 @@ func ByWebsite(opts ...sql.OrderTermOption) OrderOption {
 // ByLogoURL orders the results by the logo_url field.
 func ByLogoURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLogoURL, opts...).ToFunc()
+}
+
+// ByTest orders the results by the test field.
+func ByTest(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTest, opts...).ToFunc()
 }
 
 // ByCurrencyRatesCount orders the results by currency_rates count.

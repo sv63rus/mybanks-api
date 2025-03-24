@@ -24,6 +24,8 @@ type Bank struct {
 	Website string `json:"website,omitempty"`
 	// LogoURL holds the value of the "logo_url" field.
 	LogoURL string `json:"logo_url,omitempty"`
+	// Test holds the value of the "test" field.
+	Test string `json:"test,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the BankQuery when eager-loading is set.
 	Edges        BankEdges `json:"edges"`
@@ -66,7 +68,7 @@ func (*Bank) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case bank.FieldID:
 			values[i] = new(sql.NullInt64)
-		case bank.FieldName, bank.FieldCountry, bank.FieldWebsite, bank.FieldLogoURL:
+		case bank.FieldName, bank.FieldCountry, bank.FieldWebsite, bank.FieldLogoURL, bank.FieldTest:
 			values[i] = new(sql.NullString)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -112,6 +114,12 @@ func (b *Bank) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field logo_url", values[i])
 			} else if value.Valid {
 				b.LogoURL = value.String
+			}
+		case bank.FieldTest:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field test", values[i])
+			} else if value.Valid {
+				b.Test = value.String
 			}
 		default:
 			b.selectValues.Set(columns[i], values[i])
@@ -170,6 +178,9 @@ func (b *Bank) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("logo_url=")
 	builder.WriteString(b.LogoURL)
+	builder.WriteString(", ")
+	builder.WriteString("test=")
+	builder.WriteString(b.Test)
 	builder.WriteByte(')')
 	return builder.String()
 }

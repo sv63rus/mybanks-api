@@ -16,6 +16,7 @@ func (Bank) Fields() []ent.Field {
 		field.String("country"),
 		field.String("website").Optional(),
 		field.String("logo_url").Optional(),
+		field.String("test").Optional(),
 	}
 }
 

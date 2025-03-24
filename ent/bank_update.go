@@ -97,6 +97,26 @@ func (bu *BankUpdate) ClearLogoURL() *BankUpdate {
 	return bu
 }
 
+// SetTest sets the "test" field.
+func (bu *BankUpdate) SetTest(s string) *BankUpdate {
+	bu.mutation.SetTest(s)
+	return bu
+}
+
+// SetNillableTest sets the "test" field if the given value is not nil.
+func (bu *BankUpdate) SetNillableTest(s *string) *BankUpdate {
+	if s != nil {
+		bu.SetTest(*s)
+	}
+	return bu
+}
+
+// ClearTest clears the value of the "test" field.
+func (bu *BankUpdate) ClearTest() *BankUpdate {
+	bu.mutation.ClearTest()
+	return bu
+}
+
 // AddCurrencyRateIDs adds the "currency_rates" edge to the CurrencyRate entity by IDs.
 func (bu *BankUpdate) AddCurrencyRateIDs(ids ...int) *BankUpdate {
 	bu.mutation.AddCurrencyRateIDs(ids...)
@@ -227,6 +247,12 @@ func (bu *BankUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if bu.mutation.LogoURLCleared() {
 		_spec.ClearField(bank.FieldLogoURL, field.TypeString)
+	}
+	if value, ok := bu.mutation.Test(); ok {
+		_spec.SetField(bank.FieldTest, field.TypeString, value)
+	}
+	if bu.mutation.TestCleared() {
+		_spec.ClearField(bank.FieldTest, field.TypeString)
 	}
 	if bu.mutation.CurrencyRatesCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -406,6 +432,26 @@ func (buo *BankUpdateOne) ClearLogoURL() *BankUpdateOne {
 	return buo
 }
 
+// SetTest sets the "test" field.
+func (buo *BankUpdateOne) SetTest(s string) *BankUpdateOne {
+	buo.mutation.SetTest(s)
+	return buo
+}
+
+// SetNillableTest sets the "test" field if the given value is not nil.
+func (buo *BankUpdateOne) SetNillableTest(s *string) *BankUpdateOne {
+	if s != nil {
+		buo.SetTest(*s)
+	}
+	return buo
+}
+
+// ClearTest clears the value of the "test" field.
+func (buo *BankUpdateOne) ClearTest() *BankUpdateOne {
+	buo.mutation.ClearTest()
+	return buo
+}
+
 // AddCurrencyRateIDs adds the "currency_rates" edge to the CurrencyRate entity by IDs.
 func (buo *BankUpdateOne) AddCurrencyRateIDs(ids ...int) *BankUpdateOne {
 	buo.mutation.AddCurrencyRateIDs(ids...)
@@ -566,6 +612,12 @@ func (buo *BankUpdateOne) sqlSave(ctx context.Context) (_node *Bank, err error) 
 	}
 	if buo.mutation.LogoURLCleared() {
 		_spec.ClearField(bank.FieldLogoURL, field.TypeString)
+	}
+	if value, ok := buo.mutation.Test(); ok {
+		_spec.SetField(bank.FieldTest, field.TypeString, value)
+	}
+	if buo.mutation.TestCleared() {
+		_spec.ClearField(bank.FieldTest, field.TypeString)
 	}
 	if buo.mutation.CurrencyRatesCleared() {
 		edge := &sqlgraph.EdgeSpec{
