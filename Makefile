@@ -3,6 +3,9 @@
 generate:
 	@echo "🔧 Generating Ent client + OpenAPI JSON spec..."
 	go generate ./...
+	go generate ./ent
+	go get github.com/99designs/gqlgen@v0.17.68
+	go run github.com/99designs/gqlgen generate
 
 enrich: generate
 	@echo "➕ Injecting metadata into openapi.json..."

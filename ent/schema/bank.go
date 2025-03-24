@@ -15,6 +15,7 @@ type Bank struct {
 func (Bank) Annotations() []schema.Annotation {
 	return []schema.Annotation{
 		entgql.QueryField(),
+		entgql.RelayConnection(), // если нужны pagination и edges
 		entgql.Mutations(entgql.MutationCreate(), entgql.MutationUpdate()),
 	}
 }

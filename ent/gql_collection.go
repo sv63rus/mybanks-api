@@ -113,6 +113,9 @@ func newBankPaginateArgs(rv map[string]any) *bankPaginateArgs {
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
 	}
+	if v, ok := rv[whereField].(*BankWhereInput); ok {
+		args.opts = append(args.opts, WithBankFilter(v.Filter))
+	}
 	return args
 }
 
@@ -192,6 +195,9 @@ func newCurrencyRatePaginateArgs(rv map[string]any) *currencyratePaginateArgs {
 	}
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*CurrencyRateWhereInput); ok {
+		args.opts = append(args.opts, WithCurrencyRateFilter(v.Filter))
 	}
 	return args
 }
@@ -277,6 +283,9 @@ func newOfferPaginateArgs(rv map[string]any) *offerPaginateArgs {
 	}
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*OfferWhereInput); ok {
+		args.opts = append(args.opts, WithOfferFilter(v.Filter))
 	}
 	return args
 }

@@ -8,35 +8,57 @@ import (
 	"context"
 	"fmt"
 	"mybanks-api/ent"
+	"mybanks-api/graph/model"
+	"strconv"
 )
 
-// Bank возвращает вложенные данные по валютам и предложениям.
-func (r *queryResolver) Offers(ctx context.Context, obj *ent.Bank) ([]*ent.Offer, error) {
-	return obj.QueryOffers().All(ctx)
+// Node is the resolver for the node field.
+func (r *queryResolver) Node(ctx context.Context, id string) (ent.Noder, error) {
+	panic(fmt.Errorf("not implemented: Node - node"))
 }
 
-func (r *queryResolver) CurrencyRates(ctx context.Context, obj *ent.Bank) ([]*ent.CurrencyRate, error) {
-	return obj.QueryCurrencyRates().All(ctx)
-}
-
-// CreateBank is the resolver for the createBank field.
-func (r *mutationResolver) CreateBank(ctx context.Context, name string, country string) (*ent.Bank, error) {
-	panic(fmt.Errorf("not implemented: CreateBank - createBank"))
+// Nodes is the resolver for the nodes field.
+func (r *queryResolver) Nodes(ctx context.Context, ids []string) ([]ent.Noder, error) {
+	panic(fmt.Errorf("not implemented: Nodes - nodes"))
 }
 
 // Banks is the resolver for the banks field.
-func (r *queryResolver) Banks(ctx context.Context) ([]*ent.Bank, error) {
-	return r.Client.Bank.Query().
-		WithOffers().        // загружаем связанные offers
-		WithCurrencyRates(). // загружаем связанные currencyRates
-		All(ctx)
+func (r *queryResolver) Banks(ctx context.Context, after *string, first *int32, before *string, last *int32, where *model.BankWhereInput) (*model.BankConnection, error) {
+	banks, err := r.Client.Bank.Query().WithOffers().WithCurrencyRates().All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var edges []*model.BankEdge
+	for _, bank := range banks {
+		edges = append(edges, &model.BankEdge{
+			Node:   MapBank(bank), // Используем маппер
+			Cursor: strconv.Itoa(bank.ID),
+		})
+	}
+
+	return &model.BankConnection{
+		Edges: edges,
+		PageInfo: &model.PageInfo{
+			HasNextPage:     false,
+			HasPreviousPage: false,
+			StartCursor:     nil,
+			EndCursor:       nil,
+		},
+	}, nil
 }
 
-// Mutation returns MutationResolver implementation.
-func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
+// CurrencyRates is the resolver for the currencyRates field.
+func (r *queryResolver) CurrencyRates(ctx context.Context) ([]*model.CurrencyRate, error) {
+	panic(fmt.Errorf("not implemented: CurrencyRates - currencyRates"))
+}
+
+// Offers is the resolver for the offers field.
+func (r *queryResolver) Offers(ctx context.Context) ([]*model.Offer, error) {
+	panic(fmt.Errorf("not implemented: Offers - offers"))
+}
 
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
-type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
