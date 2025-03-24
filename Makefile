@@ -24,10 +24,3 @@ openapi: enrich
 	yq -P -o=yaml ent/openapi.json > api/openapi.yaml
 	@echo "✅ docs/openapi.generated.yaml created from enriched JSON"
 
-genapi:
-	@echo "Start routes gen"
-	ogen \
-      -target ./api/gen \
-      -clean \
-      -package gen \
-      ./api/openapi.yaml
