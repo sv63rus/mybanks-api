@@ -14,6 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"entgo.io/contrib/entgql"
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
 	gqlparser "github.com/vektah/gqlparser/v2"
@@ -40,6 +41,9 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	BankConnection() BankConnectionResolver
+	BankEdge() BankEdgeResolver
+	PageInfo() PageInfoResolver
 	Query() QueryResolver
 }
 
@@ -91,6 +95,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		Bank          func(childComplexity int, id string) int
 		Banks         func(childComplexity int, after *string, first *int32, before *string, last *int32, where *model.BankWhereInput) int
 		CurrencyRates func(childComplexity int) int
 		Node          func(childComplexity int, id string) int
@@ -99,12 +104,23 @@ type ComplexityRoot struct {
 	}
 }
 
+type BankConnectionResolver interface {
+	TotalCount(ctx context.Context, obj *ent.BankConnection) (int32, error)
+}
+type BankEdgeResolver interface {
+	Cursor(ctx context.Context, obj *ent.BankEdge) (string, error)
+}
+type PageInfoResolver interface {
+	StartCursor(ctx context.Context, obj *entgql.PageInfo[int]) (*string, error)
+	EndCursor(ctx context.Context, obj *entgql.PageInfo[int]) (*string, error)
+}
 type QueryResolver interface {
 	Node(ctx context.Context, id string) (ent.Noder, error)
 	Nodes(ctx context.Context, ids []string) ([]ent.Noder, error)
-	Banks(ctx context.Context, after *string, first *int32, before *string, last *int32, where *model.BankWhereInput) (*model.BankConnection, error)
-	CurrencyRates(ctx context.Context) ([]*model.CurrencyRate, error)
-	Offers(ctx context.Context) ([]*model.Offer, error)
+	Banks(ctx context.Context, after *string, first *int32, before *string, last *int32, where *model.BankWhereInput) (*ent.BankConnection, error)
+	CurrencyRates(ctx context.Context) ([]*ent.CurrencyRate, error)
+	Offers(ctx context.Context) ([]*ent.Offer, error)
+	Bank(ctx context.Context, id string) (*ent.Bank, error)
 }
 
 type executableSchema struct {
@@ -301,6 +317,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.PageInfo.StartCursor(childComplexity), true
 
+	case "Query.bank":
+		if e.complexity.Query.Bank == nil {
+			break
+		}
+
+		args, err := ec.field_Query_bank_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Bank(childComplexity, args["id"].(string)), true
+
 	case "Query.banks":
 		if e.complexity.Query.Banks == nil {
 			break
@@ -449,7 +477,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "schema.graphqls"
+//go:embed "custom.graphqls" "schema.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -461,6 +489,7 @@ func sourceData(filename string) string {
 }
 
 var sources = []*ast.Source{
+	{Name: "custom.graphqls", Input: sourceData("custom.graphqls"), BuiltIn: false},
 	{Name: "schema.graphqls", Input: sourceData("schema.graphqls"), BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -486,6 +515,29 @@ func (ec *executionContext) field_Query___type_argsName(
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 	if tmp, ok := rawArgs["name"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_bank_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_bank_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_bank_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
 	}
 
 	var zeroVal string
@@ -733,7 +785,7 @@ func (ec *executionContext) field___Type_fields_argsIncludeDeprecated(
 
 // region    **************************** field.gotpl *****************************
 
-func (ec *executionContext) _Bank_id(ctx context.Context, field graphql.CollectedField, obj *model.Bank) (ret graphql.Marshaler) {
+func (ec *executionContext) _Bank_id(ctx context.Context, field graphql.CollectedField, obj *ent.Bank) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Bank_id(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -759,9 +811,9 @@ func (ec *executionContext) _Bank_id(ctx context.Context, field graphql.Collecte
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(int)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNID2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Bank_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -777,7 +829,7 @@ func (ec *executionContext) fieldContext_Bank_id(_ context.Context, field graphq
 	return fc, nil
 }
 
-func (ec *executionContext) _Bank_name(ctx context.Context, field graphql.CollectedField, obj *model.Bank) (ret graphql.Marshaler) {
+func (ec *executionContext) _Bank_name(ctx context.Context, field graphql.CollectedField, obj *ent.Bank) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Bank_name(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -821,7 +873,7 @@ func (ec *executionContext) fieldContext_Bank_name(_ context.Context, field grap
 	return fc, nil
 }
 
-func (ec *executionContext) _Bank_country(ctx context.Context, field graphql.CollectedField, obj *model.Bank) (ret graphql.Marshaler) {
+func (ec *executionContext) _Bank_country(ctx context.Context, field graphql.CollectedField, obj *ent.Bank) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Bank_country(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -865,7 +917,7 @@ func (ec *executionContext) fieldContext_Bank_country(_ context.Context, field g
 	return fc, nil
 }
 
-func (ec *executionContext) _Bank_website(ctx context.Context, field graphql.CollectedField, obj *model.Bank) (ret graphql.Marshaler) {
+func (ec *executionContext) _Bank_website(ctx context.Context, field graphql.CollectedField, obj *ent.Bank) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Bank_website(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -888,9 +940,9 @@ func (ec *executionContext) _Bank_website(ctx context.Context, field graphql.Col
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalOString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Bank_website(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -906,7 +958,7 @@ func (ec *executionContext) fieldContext_Bank_website(_ context.Context, field g
 	return fc, nil
 }
 
-func (ec *executionContext) _Bank_logoURL(ctx context.Context, field graphql.CollectedField, obj *model.Bank) (ret graphql.Marshaler) {
+func (ec *executionContext) _Bank_logoURL(ctx context.Context, field graphql.CollectedField, obj *ent.Bank) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Bank_logoURL(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -929,9 +981,9 @@ func (ec *executionContext) _Bank_logoURL(ctx context.Context, field graphql.Col
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalOString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Bank_logoURL(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -947,7 +999,7 @@ func (ec *executionContext) fieldContext_Bank_logoURL(_ context.Context, field g
 	return fc, nil
 }
 
-func (ec *executionContext) _Bank_currencyRates(ctx context.Context, field graphql.CollectedField, obj *model.Bank) (ret graphql.Marshaler) {
+func (ec *executionContext) _Bank_currencyRates(ctx context.Context, field graphql.CollectedField, obj *ent.Bank) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Bank_currencyRates(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -961,7 +1013,7 @@ func (ec *executionContext) _Bank_currencyRates(ctx context.Context, field graph
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.CurrencyRates, nil
+		return obj.CurrencyRates(ctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -970,16 +1022,16 @@ func (ec *executionContext) _Bank_currencyRates(ctx context.Context, field graph
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.([]*model.CurrencyRate)
+	res := resTmp.([]*ent.CurrencyRate)
 	fc.Result = res
-	return ec.marshalOCurrencyRate2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐCurrencyRateᚄ(ctx, field.Selections, res)
+	return ec.marshalOCurrencyRate2ᚕᚖmybanksᚑapiᚋentᚐCurrencyRateᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Bank_currencyRates(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Bank",
 		Field:      field,
-		IsMethod:   false,
+		IsMethod:   true,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
@@ -998,7 +1050,7 @@ func (ec *executionContext) fieldContext_Bank_currencyRates(_ context.Context, f
 	return fc, nil
 }
 
-func (ec *executionContext) _Bank_offers(ctx context.Context, field graphql.CollectedField, obj *model.Bank) (ret graphql.Marshaler) {
+func (ec *executionContext) _Bank_offers(ctx context.Context, field graphql.CollectedField, obj *ent.Bank) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Bank_offers(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1012,7 +1064,7 @@ func (ec *executionContext) _Bank_offers(ctx context.Context, field graphql.Coll
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Offers, nil
+		return obj.Offers(ctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1021,16 +1073,16 @@ func (ec *executionContext) _Bank_offers(ctx context.Context, field graphql.Coll
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.([]*model.Offer)
+	res := resTmp.([]*ent.Offer)
 	fc.Result = res
-	return ec.marshalOOffer2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐOfferᚄ(ctx, field.Selections, res)
+	return ec.marshalOOffer2ᚕᚖmybanksᚑapiᚋentᚐOfferᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Bank_offers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Bank",
 		Field:      field,
-		IsMethod:   false,
+		IsMethod:   true,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
@@ -1051,7 +1103,7 @@ func (ec *executionContext) fieldContext_Bank_offers(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _BankConnection_edges(ctx context.Context, field graphql.CollectedField, obj *model.BankConnection) (ret graphql.Marshaler) {
+func (ec *executionContext) _BankConnection_edges(ctx context.Context, field graphql.CollectedField, obj *ent.BankConnection) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_BankConnection_edges(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1074,9 +1126,9 @@ func (ec *executionContext) _BankConnection_edges(ctx context.Context, field gra
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.([]*model.BankEdge)
+	res := resTmp.([]*ent.BankEdge)
 	fc.Result = res
-	return ec.marshalOBankEdge2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐBankEdge(ctx, field.Selections, res)
+	return ec.marshalOBankEdge2ᚕᚖmybanksᚑapiᚋentᚐBankEdge(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_BankConnection_edges(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1098,7 +1150,7 @@ func (ec *executionContext) fieldContext_BankConnection_edges(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _BankConnection_pageInfo(ctx context.Context, field graphql.CollectedField, obj *model.BankConnection) (ret graphql.Marshaler) {
+func (ec *executionContext) _BankConnection_pageInfo(ctx context.Context, field graphql.CollectedField, obj *ent.BankConnection) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_BankConnection_pageInfo(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1124,9 +1176,9 @@ func (ec *executionContext) _BankConnection_pageInfo(ctx context.Context, field 
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.PageInfo)
+	res := resTmp.(entgql.PageInfo[int])
 	fc.Result = res
-	return ec.marshalNPageInfo2ᚖmybanksᚑapiᚋgraphᚋmodelᚐPageInfo(ctx, field.Selections, res)
+	return ec.marshalNPageInfo2entgoᚗioᚋcontribᚋentgqlᚐPageInfo(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_BankConnection_pageInfo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1152,7 +1204,7 @@ func (ec *executionContext) fieldContext_BankConnection_pageInfo(_ context.Conte
 	return fc, nil
 }
 
-func (ec *executionContext) _BankConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.BankConnection) (ret graphql.Marshaler) {
+func (ec *executionContext) _BankConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *ent.BankConnection) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_BankConnection_totalCount(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1166,7 +1218,7 @@ func (ec *executionContext) _BankConnection_totalCount(ctx context.Context, fiel
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.TotalCount, nil
+		return ec.resolvers.BankConnection().TotalCount(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1187,8 +1239,8 @@ func (ec *executionContext) fieldContext_BankConnection_totalCount(_ context.Con
 	fc = &graphql.FieldContext{
 		Object:     "BankConnection",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
 		},
@@ -1196,7 +1248,7 @@ func (ec *executionContext) fieldContext_BankConnection_totalCount(_ context.Con
 	return fc, nil
 }
 
-func (ec *executionContext) _BankEdge_node(ctx context.Context, field graphql.CollectedField, obj *model.BankEdge) (ret graphql.Marshaler) {
+func (ec *executionContext) _BankEdge_node(ctx context.Context, field graphql.CollectedField, obj *ent.BankEdge) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_BankEdge_node(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1219,9 +1271,9 @@ func (ec *executionContext) _BankEdge_node(ctx context.Context, field graphql.Co
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.Bank)
+	res := resTmp.(*ent.Bank)
 	fc.Result = res
-	return ec.marshalOBank2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBank(ctx, field.Selections, res)
+	return ec.marshalOBank2ᚖmybanksᚑapiᚋentᚐBank(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_BankEdge_node(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1253,7 +1305,7 @@ func (ec *executionContext) fieldContext_BankEdge_node(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _BankEdge_cursor(ctx context.Context, field graphql.CollectedField, obj *model.BankEdge) (ret graphql.Marshaler) {
+func (ec *executionContext) _BankEdge_cursor(ctx context.Context, field graphql.CollectedField, obj *ent.BankEdge) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_BankEdge_cursor(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1267,7 +1319,7 @@ func (ec *executionContext) _BankEdge_cursor(ctx context.Context, field graphql.
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Cursor, nil
+		return ec.resolvers.BankEdge().Cursor(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1288,8 +1340,8 @@ func (ec *executionContext) fieldContext_BankEdge_cursor(_ context.Context, fiel
 	fc = &graphql.FieldContext{
 		Object:     "BankEdge",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Cursor does not have child fields")
 		},
@@ -1297,7 +1349,7 @@ func (ec *executionContext) fieldContext_BankEdge_cursor(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _CurrencyRate_id(ctx context.Context, field graphql.CollectedField, obj *model.CurrencyRate) (ret graphql.Marshaler) {
+func (ec *executionContext) _CurrencyRate_id(ctx context.Context, field graphql.CollectedField, obj *ent.CurrencyRate) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CurrencyRate_id(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1323,9 +1375,9 @@ func (ec *executionContext) _CurrencyRate_id(ctx context.Context, field graphql.
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(int)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNID2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_CurrencyRate_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1341,7 +1393,7 @@ func (ec *executionContext) fieldContext_CurrencyRate_id(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _CurrencyRate_currency(ctx context.Context, field graphql.CollectedField, obj *model.CurrencyRate) (ret graphql.Marshaler) {
+func (ec *executionContext) _CurrencyRate_currency(ctx context.Context, field graphql.CollectedField, obj *ent.CurrencyRate) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CurrencyRate_currency(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1385,7 +1437,7 @@ func (ec *executionContext) fieldContext_CurrencyRate_currency(_ context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _CurrencyRate_rate(ctx context.Context, field graphql.CollectedField, obj *model.CurrencyRate) (ret graphql.Marshaler) {
+func (ec *executionContext) _CurrencyRate_rate(ctx context.Context, field graphql.CollectedField, obj *ent.CurrencyRate) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CurrencyRate_rate(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1429,7 +1481,7 @@ func (ec *executionContext) fieldContext_CurrencyRate_rate(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _CurrencyRate_bank(ctx context.Context, field graphql.CollectedField, obj *model.CurrencyRate) (ret graphql.Marshaler) {
+func (ec *executionContext) _CurrencyRate_bank(ctx context.Context, field graphql.CollectedField, obj *ent.CurrencyRate) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CurrencyRate_bank(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1443,7 +1495,7 @@ func (ec *executionContext) _CurrencyRate_bank(ctx context.Context, field graphq
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Bank, nil
+		return obj.Bank(ctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1455,16 +1507,16 @@ func (ec *executionContext) _CurrencyRate_bank(ctx context.Context, field graphq
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Bank)
+	res := resTmp.(*ent.Bank)
 	fc.Result = res
-	return ec.marshalNBank2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBank(ctx, field.Selections, res)
+	return ec.marshalNBank2ᚖmybanksᚑapiᚋentᚐBank(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_CurrencyRate_bank(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "CurrencyRate",
 		Field:      field,
-		IsMethod:   false,
+		IsMethod:   true,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
@@ -1489,7 +1541,7 @@ func (ec *executionContext) fieldContext_CurrencyRate_bank(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _Offer_id(ctx context.Context, field graphql.CollectedField, obj *model.Offer) (ret graphql.Marshaler) {
+func (ec *executionContext) _Offer_id(ctx context.Context, field graphql.CollectedField, obj *ent.Offer) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Offer_id(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1515,9 +1567,9 @@ func (ec *executionContext) _Offer_id(ctx context.Context, field graphql.Collect
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(int)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNID2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Offer_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1533,7 +1585,7 @@ func (ec *executionContext) fieldContext_Offer_id(_ context.Context, field graph
 	return fc, nil
 }
 
-func (ec *executionContext) _Offer_type(ctx context.Context, field graphql.CollectedField, obj *model.Offer) (ret graphql.Marshaler) {
+func (ec *executionContext) _Offer_type(ctx context.Context, field graphql.CollectedField, obj *ent.Offer) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Offer_type(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1577,7 +1629,7 @@ func (ec *executionContext) fieldContext_Offer_type(_ context.Context, field gra
 	return fc, nil
 }
 
-func (ec *executionContext) _Offer_description(ctx context.Context, field graphql.CollectedField, obj *model.Offer) (ret graphql.Marshaler) {
+func (ec *executionContext) _Offer_description(ctx context.Context, field graphql.CollectedField, obj *ent.Offer) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Offer_description(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1621,7 +1673,7 @@ func (ec *executionContext) fieldContext_Offer_description(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _Offer_link(ctx context.Context, field graphql.CollectedField, obj *model.Offer) (ret graphql.Marshaler) {
+func (ec *executionContext) _Offer_link(ctx context.Context, field graphql.CollectedField, obj *ent.Offer) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Offer_link(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1665,7 +1717,7 @@ func (ec *executionContext) fieldContext_Offer_link(_ context.Context, field gra
 	return fc, nil
 }
 
-func (ec *executionContext) _Offer_bank(ctx context.Context, field graphql.CollectedField, obj *model.Offer) (ret graphql.Marshaler) {
+func (ec *executionContext) _Offer_bank(ctx context.Context, field graphql.CollectedField, obj *ent.Offer) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Offer_bank(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1679,7 +1731,7 @@ func (ec *executionContext) _Offer_bank(ctx context.Context, field graphql.Colle
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Bank, nil
+		return obj.Bank(ctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1691,16 +1743,16 @@ func (ec *executionContext) _Offer_bank(ctx context.Context, field graphql.Colle
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Bank)
+	res := resTmp.(*ent.Bank)
 	fc.Result = res
-	return ec.marshalNBank2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBank(ctx, field.Selections, res)
+	return ec.marshalNBank2ᚖmybanksᚑapiᚋentᚐBank(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Offer_bank(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Offer",
 		Field:      field,
-		IsMethod:   false,
+		IsMethod:   true,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
@@ -1725,7 +1777,7 @@ func (ec *executionContext) fieldContext_Offer_bank(_ context.Context, field gra
 	return fc, nil
 }
 
-func (ec *executionContext) _PageInfo_hasNextPage(ctx context.Context, field graphql.CollectedField, obj *model.PageInfo) (ret graphql.Marshaler) {
+func (ec *executionContext) _PageInfo_hasNextPage(ctx context.Context, field graphql.CollectedField, obj *entgql.PageInfo[int]) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_PageInfo_hasNextPage(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1769,7 +1821,7 @@ func (ec *executionContext) fieldContext_PageInfo_hasNextPage(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _PageInfo_hasPreviousPage(ctx context.Context, field graphql.CollectedField, obj *model.PageInfo) (ret graphql.Marshaler) {
+func (ec *executionContext) _PageInfo_hasPreviousPage(ctx context.Context, field graphql.CollectedField, obj *entgql.PageInfo[int]) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_PageInfo_hasPreviousPage(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1813,7 +1865,7 @@ func (ec *executionContext) fieldContext_PageInfo_hasPreviousPage(_ context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _PageInfo_startCursor(ctx context.Context, field graphql.CollectedField, obj *model.PageInfo) (ret graphql.Marshaler) {
+func (ec *executionContext) _PageInfo_startCursor(ctx context.Context, field graphql.CollectedField, obj *entgql.PageInfo[int]) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_PageInfo_startCursor(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1827,7 +1879,7 @@ func (ec *executionContext) _PageInfo_startCursor(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.StartCursor, nil
+		return ec.resolvers.PageInfo().StartCursor(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1845,8 +1897,8 @@ func (ec *executionContext) fieldContext_PageInfo_startCursor(_ context.Context,
 	fc = &graphql.FieldContext{
 		Object:     "PageInfo",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Cursor does not have child fields")
 		},
@@ -1854,7 +1906,7 @@ func (ec *executionContext) fieldContext_PageInfo_startCursor(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _PageInfo_endCursor(ctx context.Context, field graphql.CollectedField, obj *model.PageInfo) (ret graphql.Marshaler) {
+func (ec *executionContext) _PageInfo_endCursor(ctx context.Context, field graphql.CollectedField, obj *entgql.PageInfo[int]) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_PageInfo_endCursor(ctx, field)
 	if err != nil {
 		return graphql.Null
@@ -1868,7 +1920,7 @@ func (ec *executionContext) _PageInfo_endCursor(ctx context.Context, field graph
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.EndCursor, nil
+		return ec.resolvers.PageInfo().EndCursor(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1886,8 +1938,8 @@ func (ec *executionContext) fieldContext_PageInfo_endCursor(_ context.Context, f
 	fc = &graphql.FieldContext{
 		Object:     "PageInfo",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Cursor does not have child fields")
 		},
@@ -2028,9 +2080,9 @@ func (ec *executionContext) _Query_banks(ctx context.Context, field graphql.Coll
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.BankConnection)
+	res := resTmp.(*ent.BankConnection)
 	fc.Result = res
-	return ec.marshalNBankConnection2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBankConnection(ctx, field.Selections, res)
+	return ec.marshalNBankConnection2ᚖmybanksᚑapiᚋentᚐBankConnection(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_banks(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2091,9 +2143,9 @@ func (ec *executionContext) _Query_currencyRates(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.CurrencyRate)
+	res := resTmp.([]*ent.CurrencyRate)
 	fc.Result = res
-	return ec.marshalNCurrencyRate2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐCurrencyRateᚄ(ctx, field.Selections, res)
+	return ec.marshalNCurrencyRate2ᚕᚖmybanksᚑapiᚋentᚐCurrencyRateᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_currencyRates(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2145,9 +2197,9 @@ func (ec *executionContext) _Query_offers(ctx context.Context, field graphql.Col
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.Offer)
+	res := resTmp.([]*ent.Offer)
 	fc.Result = res
-	return ec.marshalNOffer2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐOfferᚄ(ctx, field.Selections, res)
+	return ec.marshalNOffer2ᚕᚖmybanksᚑapiᚋentᚐOfferᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_offers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2171,6 +2223,74 @@ func (ec *executionContext) fieldContext_Query_offers(_ context.Context, field g
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Offer", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_bank(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_bank(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Bank(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ent.Bank)
+	fc.Result = res
+	return ec.marshalOBank2ᚖmybanksᚑapiᚋentᚐBank(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_bank(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Bank_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Bank_name(ctx, field)
+			case "country":
+				return ec.fieldContext_Bank_country(ctx, field)
+			case "website":
+				return ec.fieldContext_Bank_website(ctx, field)
+			case "logoURL":
+				return ec.fieldContext_Bank_logoURL(ctx, field)
+			case "currencyRates":
+				return ec.fieldContext_Bank_currencyRates(ctx, field)
+			case "offers":
+				return ec.fieldContext_Bank_offers(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Bank", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_bank_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -5768,23 +5888,17 @@ func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj
 	switch obj := (obj).(type) {
 	case nil:
 		return graphql.Null
-	case model.Offer:
-		return ec._Offer(ctx, sel, &obj)
-	case *model.Offer:
+	case *ent.Offer:
 		if obj == nil {
 			return graphql.Null
 		}
 		return ec._Offer(ctx, sel, obj)
-	case model.CurrencyRate:
-		return ec._CurrencyRate(ctx, sel, &obj)
-	case *model.CurrencyRate:
+	case *ent.CurrencyRate:
 		if obj == nil {
 			return graphql.Null
 		}
 		return ec._CurrencyRate(ctx, sel, obj)
-	case model.Bank:
-		return ec._Bank(ctx, sel, &obj)
-	case *model.Bank:
+	case *ent.Bank:
 		if obj == nil {
 			return graphql.Null
 		}
@@ -5800,7 +5914,7 @@ func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj
 
 var bankImplementors = []string{"Bank", "Node"}
 
-func (ec *executionContext) _Bank(ctx context.Context, sel ast.SelectionSet, obj *model.Bank) graphql.Marshaler {
+func (ec *executionContext) _Bank(ctx context.Context, sel ast.SelectionSet, obj *ent.Bank) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, bankImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -5812,26 +5926,88 @@ func (ec *executionContext) _Bank(ctx context.Context, sel ast.SelectionSet, obj
 		case "id":
 			out.Values[i] = ec._Bank_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._Bank_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "country":
 			out.Values[i] = ec._Bank_country(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "website":
 			out.Values[i] = ec._Bank_website(ctx, field, obj)
 		case "logoURL":
 			out.Values[i] = ec._Bank_logoURL(ctx, field, obj)
 		case "currencyRates":
-			out.Values[i] = ec._Bank_currencyRates(ctx, field, obj)
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Bank_currencyRates(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "offers":
-			out.Values[i] = ec._Bank_offers(ctx, field, obj)
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Bank_offers(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5857,7 +6033,7 @@ func (ec *executionContext) _Bank(ctx context.Context, sel ast.SelectionSet, obj
 
 var bankConnectionImplementors = []string{"BankConnection"}
 
-func (ec *executionContext) _BankConnection(ctx context.Context, sel ast.SelectionSet, obj *model.BankConnection) graphql.Marshaler {
+func (ec *executionContext) _BankConnection(ctx context.Context, sel ast.SelectionSet, obj *ent.BankConnection) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, bankConnectionImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -5871,13 +6047,44 @@ func (ec *executionContext) _BankConnection(ctx context.Context, sel ast.Selecti
 		case "pageInfo":
 			out.Values[i] = ec._BankConnection_pageInfo(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "totalCount":
-			out.Values[i] = ec._BankConnection_totalCount(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._BankConnection_totalCount(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5903,7 +6110,7 @@ func (ec *executionContext) _BankConnection(ctx context.Context, sel ast.Selecti
 
 var bankEdgeImplementors = []string{"BankEdge"}
 
-func (ec *executionContext) _BankEdge(ctx context.Context, sel ast.SelectionSet, obj *model.BankEdge) graphql.Marshaler {
+func (ec *executionContext) _BankEdge(ctx context.Context, sel ast.SelectionSet, obj *ent.BankEdge) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, bankEdgeImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -5915,10 +6122,41 @@ func (ec *executionContext) _BankEdge(ctx context.Context, sel ast.SelectionSet,
 		case "node":
 			out.Values[i] = ec._BankEdge_node(ctx, field, obj)
 		case "cursor":
-			out.Values[i] = ec._BankEdge_cursor(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._BankEdge_cursor(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5944,7 +6182,7 @@ func (ec *executionContext) _BankEdge(ctx context.Context, sel ast.SelectionSet,
 
 var currencyRateImplementors = []string{"CurrencyRate", "Node"}
 
-func (ec *executionContext) _CurrencyRate(ctx context.Context, sel ast.SelectionSet, obj *model.CurrencyRate) graphql.Marshaler {
+func (ec *executionContext) _CurrencyRate(ctx context.Context, sel ast.SelectionSet, obj *ent.CurrencyRate) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, currencyRateImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -5956,23 +6194,54 @@ func (ec *executionContext) _CurrencyRate(ctx context.Context, sel ast.Selection
 		case "id":
 			out.Values[i] = ec._CurrencyRate_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "currency":
 			out.Values[i] = ec._CurrencyRate_currency(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "rate":
 			out.Values[i] = ec._CurrencyRate_rate(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "bank":
-			out.Values[i] = ec._CurrencyRate_bank(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._CurrencyRate_bank(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5998,7 +6267,7 @@ func (ec *executionContext) _CurrencyRate(ctx context.Context, sel ast.Selection
 
 var offerImplementors = []string{"Offer", "Node"}
 
-func (ec *executionContext) _Offer(ctx context.Context, sel ast.SelectionSet, obj *model.Offer) graphql.Marshaler {
+func (ec *executionContext) _Offer(ctx context.Context, sel ast.SelectionSet, obj *ent.Offer) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, offerImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -6010,28 +6279,59 @@ func (ec *executionContext) _Offer(ctx context.Context, sel ast.SelectionSet, ob
 		case "id":
 			out.Values[i] = ec._Offer_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "type":
 			out.Values[i] = ec._Offer_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "description":
 			out.Values[i] = ec._Offer_description(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "link":
 			out.Values[i] = ec._Offer_link(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "bank":
-			out.Values[i] = ec._Offer_bank(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Offer_bank(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6057,7 +6357,7 @@ func (ec *executionContext) _Offer(ctx context.Context, sel ast.SelectionSet, ob
 
 var pageInfoImplementors = []string{"PageInfo"}
 
-func (ec *executionContext) _PageInfo(ctx context.Context, sel ast.SelectionSet, obj *model.PageInfo) graphql.Marshaler {
+func (ec *executionContext) _PageInfo(ctx context.Context, sel ast.SelectionSet, obj *entgql.PageInfo[int]) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, pageInfoImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -6069,17 +6369,79 @@ func (ec *executionContext) _PageInfo(ctx context.Context, sel ast.SelectionSet,
 		case "hasNextPage":
 			out.Values[i] = ec._PageInfo_hasNextPage(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "hasPreviousPage":
 			out.Values[i] = ec._PageInfo_hasPreviousPage(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "startCursor":
-			out.Values[i] = ec._PageInfo_startCursor(ctx, field, obj)
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._PageInfo_startCursor(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "endCursor":
-			out.Values[i] = ec._PageInfo_endCursor(ctx, field, obj)
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._PageInfo_endCursor(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6220,6 +6582,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "bank":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_bank(ctx, field)
 				return res
 			}
 
@@ -6595,7 +6976,7 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) marshalNBank2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBank(ctx context.Context, sel ast.SelectionSet, v *model.Bank) graphql.Marshaler {
+func (ec *executionContext) marshalNBank2ᚖmybanksᚑapiᚋentᚐBank(ctx context.Context, sel ast.SelectionSet, v *ent.Bank) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -6605,11 +6986,11 @@ func (ec *executionContext) marshalNBank2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBank
 	return ec._Bank(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBankConnection2mybanksᚑapiᚋgraphᚋmodelᚐBankConnection(ctx context.Context, sel ast.SelectionSet, v model.BankConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBankConnection2mybanksᚑapiᚋentᚐBankConnection(ctx context.Context, sel ast.SelectionSet, v ent.BankConnection) graphql.Marshaler {
 	return ec._BankConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNBankConnection2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBankConnection(ctx context.Context, sel ast.SelectionSet, v *model.BankConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBankConnection2ᚖmybanksᚑapiᚋentᚐBankConnection(ctx context.Context, sel ast.SelectionSet, v *ent.BankConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -6639,7 +7020,7 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) marshalNCurrencyRate2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐCurrencyRateᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CurrencyRate) graphql.Marshaler {
+func (ec *executionContext) marshalNCurrencyRate2ᚕᚖmybanksᚑapiᚋentᚐCurrencyRateᚄ(ctx context.Context, sel ast.SelectionSet, v []*ent.CurrencyRate) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -6663,7 +7044,7 @@ func (ec *executionContext) marshalNCurrencyRate2ᚕᚖmybanksᚑapiᚋgraphᚋm
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNCurrencyRate2ᚖmybanksᚑapiᚋgraphᚋmodelᚐCurrencyRate(ctx, sel, v[i])
+			ret[i] = ec.marshalNCurrencyRate2ᚖmybanksᚑapiᚋentᚐCurrencyRate(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -6683,7 +7064,7 @@ func (ec *executionContext) marshalNCurrencyRate2ᚕᚖmybanksᚑapiᚋgraphᚋm
 	return ret
 }
 
-func (ec *executionContext) marshalNCurrencyRate2ᚖmybanksᚑapiᚋgraphᚋmodelᚐCurrencyRate(ctx context.Context, sel ast.SelectionSet, v *model.CurrencyRate) graphql.Marshaler {
+func (ec *executionContext) marshalNCurrencyRate2ᚖmybanksᚑapiᚋentᚐCurrencyRate(ctx context.Context, sel ast.SelectionSet, v *ent.CurrencyRate) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -6726,6 +7107,21 @@ func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.S
 		}
 	}
 	return graphql.WrapContextMarshaler(ctx, res)
+}
+
+func (ec *executionContext) unmarshalNID2int(ctx context.Context, v any) (int, error) {
+	res, err := graphql.UnmarshalInt(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNID2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
+	res := graphql.MarshalInt(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
@@ -6826,7 +7222,7 @@ func (ec *executionContext) marshalNNode2ᚕmybanksᚑapiᚋentᚐNoder(ctx cont
 	return ret
 }
 
-func (ec *executionContext) marshalNOffer2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐOfferᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Offer) graphql.Marshaler {
+func (ec *executionContext) marshalNOffer2ᚕᚖmybanksᚑapiᚋentᚐOfferᚄ(ctx context.Context, sel ast.SelectionSet, v []*ent.Offer) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -6850,7 +7246,7 @@ func (ec *executionContext) marshalNOffer2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐ
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNOffer2ᚖmybanksᚑapiᚋgraphᚋmodelᚐOffer(ctx, sel, v[i])
+			ret[i] = ec.marshalNOffer2ᚖmybanksᚑapiᚋentᚐOffer(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -6870,7 +7266,7 @@ func (ec *executionContext) marshalNOffer2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐ
 	return ret
 }
 
-func (ec *executionContext) marshalNOffer2ᚖmybanksᚑapiᚋgraphᚋmodelᚐOffer(ctx context.Context, sel ast.SelectionSet, v *model.Offer) graphql.Marshaler {
+func (ec *executionContext) marshalNOffer2ᚖmybanksᚑapiᚋentᚐOffer(ctx context.Context, sel ast.SelectionSet, v *ent.Offer) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -6885,14 +7281,8 @@ func (ec *executionContext) unmarshalNOfferWhereInput2ᚖmybanksᚑapiᚋgraph�
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNPageInfo2ᚖmybanksᚑapiᚋgraphᚋmodelᚐPageInfo(ctx context.Context, sel ast.SelectionSet, v *model.PageInfo) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._PageInfo(ctx, sel, v)
+func (ec *executionContext) marshalNPageInfo2entgoᚗioᚋcontribᚋentgqlᚐPageInfo(ctx context.Context, sel ast.SelectionSet, v entgql.PageInfo[int]) graphql.Marshaler {
+	return ec._PageInfo(ctx, sel, &v)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
@@ -7161,14 +7551,14 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
-func (ec *executionContext) marshalOBank2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBank(ctx context.Context, sel ast.SelectionSet, v *model.Bank) graphql.Marshaler {
+func (ec *executionContext) marshalOBank2ᚖmybanksᚑapiᚋentᚐBank(ctx context.Context, sel ast.SelectionSet, v *ent.Bank) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Bank(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOBankEdge2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐBankEdge(ctx context.Context, sel ast.SelectionSet, v []*model.BankEdge) graphql.Marshaler {
+func (ec *executionContext) marshalOBankEdge2ᚕᚖmybanksᚑapiᚋentᚐBankEdge(ctx context.Context, sel ast.SelectionSet, v []*ent.BankEdge) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -7195,7 +7585,7 @@ func (ec *executionContext) marshalOBankEdge2ᚕᚖmybanksᚑapiᚋgraphᚋmodel
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalOBankEdge2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBankEdge(ctx, sel, v[i])
+			ret[i] = ec.marshalOBankEdge2ᚖmybanksᚑapiᚋentᚐBankEdge(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -7209,7 +7599,7 @@ func (ec *executionContext) marshalOBankEdge2ᚕᚖmybanksᚑapiᚋgraphᚋmodel
 	return ret
 }
 
-func (ec *executionContext) marshalOBankEdge2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBankEdge(ctx context.Context, sel ast.SelectionSet, v *model.BankEdge) graphql.Marshaler {
+func (ec *executionContext) marshalOBankEdge2ᚖmybanksᚑapiᚋentᚐBankEdge(ctx context.Context, sel ast.SelectionSet, v *ent.BankEdge) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -7268,7 +7658,7 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
-func (ec *executionContext) marshalOCurrencyRate2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐCurrencyRateᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CurrencyRate) graphql.Marshaler {
+func (ec *executionContext) marshalOCurrencyRate2ᚕᚖmybanksᚑapiᚋentᚐCurrencyRateᚄ(ctx context.Context, sel ast.SelectionSet, v []*ent.CurrencyRate) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -7295,7 +7685,7 @@ func (ec *executionContext) marshalOCurrencyRate2ᚕᚖmybanksᚑapiᚋgraphᚋm
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNCurrencyRate2ᚖmybanksᚑapiᚋgraphᚋmodelᚐCurrencyRate(ctx, sel, v[i])
+			ret[i] = ec.marshalNCurrencyRate2ᚖmybanksᚑapiᚋentᚐCurrencyRate(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -7484,7 +7874,7 @@ func (ec *executionContext) marshalONode2mybanksᚑapiᚋentᚐNoder(ctx context
 	return ec._Node(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOOffer2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐOfferᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Offer) graphql.Marshaler {
+func (ec *executionContext) marshalOOffer2ᚕᚖmybanksᚑapiᚋentᚐOfferᚄ(ctx context.Context, sel ast.SelectionSet, v []*ent.Offer) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -7511,7 +7901,7 @@ func (ec *executionContext) marshalOOffer2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐ
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNOffer2ᚖmybanksᚑapiᚋgraphᚋmodelᚐOffer(ctx, sel, v[i])
+			ret[i] = ec.marshalNOffer2ᚖmybanksᚑapiᚋentᚐOffer(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -7555,6 +7945,16 @@ func (ec *executionContext) unmarshalOOfferWhereInput2ᚖmybanksᚑapiᚋgraph�
 	}
 	res, err := ec.unmarshalInputOfferWhereInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOString2string(ctx context.Context, v any) (string, error) {
+	res, err := graphql.UnmarshalString(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOString2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	res := graphql.MarshalString(v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {

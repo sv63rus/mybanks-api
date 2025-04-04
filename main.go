@@ -1,10 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"entgo.io/ent/dialect/sql"
-
 	_ "github.com/lib/pq"
+	"github.com/vektah/gqlparser/v2/formatter"
 	"log"
 	"mybanks-api/ent"
 	"mybanks-api/graph"
@@ -20,6 +21,22 @@ import (
 )
 
 const defaultPort = "8080"
+
+// corsMiddleware устанавливает CORS-заголовки для разрешения запросов с http://localhost:3000
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Установите нужный origin или "*" если хотите разрешить все домены
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		// Обрабатываем preflight-запросы
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 func main() {
 
@@ -40,8 +57,9 @@ func main() {
 	if port == "" {
 		port = defaultPort
 	}
+	schema := graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{client}})
 
-	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{client}}))
+	srv := handler.New(schema)
 
 	srv.AddTransport(transport.Options{})
 	srv.AddTransport(transport.GET{})
@@ -56,7 +74,17 @@ func main() {
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)
+	// Добавляем отдачу схемы по HTTP:
+	var buf bytes.Buffer
+	f := formatter.NewFormatter(&buf)
+	f.FormatSchema(schema.Schema())
+
+	http.HandleFunc("/schema.graphql", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write(buf.Bytes())
+	})
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	// Оборачиваем DefaultServeMux в corsMiddleware
+	log.Fatal(http.ListenAndServe(":"+port, corsMiddleware(http.DefaultServeMux)))
 }

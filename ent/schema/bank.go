@@ -17,6 +17,8 @@ func (Bank) Annotations() []schema.Annotation {
 		entgql.QueryField(),
 		entgql.RelayConnection(), // если нужны pagination и edges
 		entgql.Mutations(entgql.MutationCreate(), entgql.MutationUpdate()),
+		entgql.OrderField("name"),
+		entgql.OrderField("country"),
 	}
 }
 

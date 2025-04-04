@@ -1,8 +1,6 @@
 package graph
 
-import (
-	"mybanks-api/ent"
-)
+import "mybanks-api/ent"
 
 // This file will not be regenerated automatically.
 //

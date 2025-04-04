@@ -37,7 +37,8 @@ model:
 resolver:
   package: graph
   layout: follow-schema # Only other option is "single-file."
-
+#  layout: single-file
+#  filename: graph/resolver.go
   # Only for single-file layout:
   # filename: graph/resolver.go
 
@@ -125,6 +126,18 @@ autobind:
 # modelgen, the others will be allowed when binding to fields. Configure them to
 # your liking
 models:
+  Bank:
+    model: mybanks-api/ent.Bank
+  BankConnection:
+    model: mybanks-api/ent.BankConnection
+  BankEdge:
+    model: mybanks-api/ent.BankEdge
+  PageInfo:
+    model: mybanks-api/ent.PageInfo
+  Offer:
+    model: mybanks-api/ent.Offer
+  CurrencyRate:
+    model: mybanks-api/ent.CurrencyRate
   ID:
     model:
       - github.com/99designs/gqlgen/graphql.ID

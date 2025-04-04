@@ -8,9 +8,42 @@ import (
 	"context"
 	"fmt"
 	"mybanks-api/ent"
+	"mybanks-api/ent/bank"
 	"mybanks-api/graph/model"
-	"strconv"
+
+	"entgo.io/contrib/entgql"
 )
+
+// TotalCount is the resolver for the totalCount field.
+func (r *bankConnectionResolver) TotalCount(ctx context.Context, obj *ent.BankConnection) (int32, error) {
+	panic(fmt.Errorf("not implemented: TotalCount - totalCount"))
+}
+
+// Cursor is the resolver for the cursor field.
+func (r *bankEdgeResolver) Cursor(ctx context.Context, obj *ent.BankEdge) (string, error) {
+	cursor, err := EncodeCursor(obj.Cursor.ID)
+	if err != nil {
+		return "", err
+	}
+	return cursor, nil
+}
+
+// StartCursor is the resolver for the startCursor field.
+func (r *pageInfoResolver) StartCursor(ctx context.Context, obj *entgql.PageInfo[int]) (*string, error) {
+	panic(fmt.Errorf("not implemented: StartCursor - startCursor"))
+}
+
+// EndCursor is the resolver for the endCursor field.
+func (r *pageInfoResolver) EndCursor(ctx context.Context, obj *entgql.PageInfo[int]) (*string, error) {
+	// Получаем последний элемент из списка
+	lastItem := obj.EndCursor
+
+	// Кодируем курсор для последнего элемента
+	cursor, _ := EncodeCursor(lastItem.ID)
+
+	// Возвращаем курсор как строку
+	return &cursor, nil
+}
 
 // Node is the resolver for the node field.
 func (r *queryResolver) Node(ctx context.Context, id string) (ent.Noder, error) {
@@ -23,42 +56,137 @@ func (r *queryResolver) Nodes(ctx context.Context, ids []string) ([]ent.Noder, e
 }
 
 // Banks is the resolver for the banks field.
-func (r *queryResolver) Banks(ctx context.Context, after *string, first *int32, before *string, last *int32, where *model.BankWhereInput) (*model.BankConnection, error) {
-	banks, err := r.Client.Bank.Query().WithOffers().WithCurrencyRates().All(ctx)
+func (r *queryResolver) Banks(ctx context.Context, after *string, first *int32, before *string, last *int32, where *model.BankWhereInput) (*ent.BankConnection, error) {
+	// Курсор → int ID
+	var afterID int
+	if after != nil {
+		decoded, err := decodeCursorToInt(*after)
+		if err != nil {
+			return nil, err
+		}
+		afterID = decoded
+	}
+
+	// Конвертируем first
+	limit := 50
+	if first != nil {
+		limit = int(*first)
+	}
+
+	query := r.Client.Bank.Query().
+		Order(ent.Asc(bank.FieldID))
+
+	if after != nil {
+		query = query.Where(bank.IDGT(afterID))
+	}
+
+	banks, err := query.Limit(limit + 1).All(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var edges []*model.BankEdge
-	for _, bank := range banks {
-		edges = append(edges, &model.BankEdge{
-			Node:   MapBank(bank), // Используем маппер
-			Cursor: strconv.Itoa(bank.ID),
+	hasNextPage := len(banks) > limit
+	if hasNextPage {
+		banks = banks[:limit]
+	}
+
+	var edges []*ent.BankEdge
+	for _, b := range banks {
+		cursor := encodeCursorFromInt(b.ID)
+		edges = append(edges, &ent.BankEdge{
+			Node:   b,
+			Cursor: cursor,
 		})
 	}
 
-	return &model.BankConnection{
+	var startCursor, endCursor *ent.Cursor
+	if len(edges) > 0 {
+		start := &ent.Cursor{ID: banks[0].ID}
+		end := &ent.Cursor{ID: banks[len(banks)-1].ID}
+		startCursor = start
+		endCursor = end
+	}
+
+	return &ent.BankConnection{
 		Edges: edges,
-		PageInfo: &model.PageInfo{
-			HasNextPage:     false,
+		PageInfo: ent.PageInfo{
+			HasNextPage:     hasNextPage,
 			HasPreviousPage: false,
-			StartCursor:     nil,
-			EndCursor:       nil,
+			StartCursor:     startCursor,
+			EndCursor:       endCursor,
 		},
 	}, nil
 }
 
 // CurrencyRates is the resolver for the currencyRates field.
-func (r *queryResolver) CurrencyRates(ctx context.Context) ([]*model.CurrencyRate, error) {
-	panic(fmt.Errorf("not implemented: CurrencyRates - currencyRates"))
+func (r *queryResolver) CurrencyRates(ctx context.Context) ([]*ent.CurrencyRate, error) {
+	panic(fmt.Errorf("not implemented: Nodes - nodes"))
 }
 
 // Offers is the resolver for the offers field.
-func (r *queryResolver) Offers(ctx context.Context) ([]*model.Offer, error) {
-	panic(fmt.Errorf("not implemented: Offers - offers"))
+func (r *queryResolver) Offers(ctx context.Context) ([]*ent.Offer, error) {
+	panic(fmt.Errorf("not implemented: Nodes - nodes"))
 }
+
+// BankConnection returns BankConnectionResolver implementation.
+func (r *Resolver) BankConnection() BankConnectionResolver { return &bankConnectionResolver{r} }
+
+// BankEdge returns BankEdgeResolver implementation.
+func (r *Resolver) BankEdge() BankEdgeResolver { return &bankEdgeResolver{r} }
+
+// PageInfo returns PageInfoResolver implementation.
+func (r *Resolver) PageInfo() PageInfoResolver { return &pageInfoResolver{r} }
 
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+type bankConnectionResolver struct{ *Resolver }
+type bankEdgeResolver struct{ *Resolver }
+type pageInfoResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+
+type bankResolver struct{ *Resolver }
+
+func (r *Resolver) Bank() *bankResolver {
+	return &bankResolver{r}
+}
+func (r *bankConnectionResolver) StartCursor(ctx context.Context, obj *ent.BankConnection) (string, error) {
+	if len(obj.Edges) == 0 {
+		return "", nil
+	}
+	// Кодируем курсор для первого элемента
+	firstBank := obj.Edges[0].Node
+	cursor, err := EncodeCursor(firstBank.ID)
+	if err != nil {
+		return "", err
+	}
+	return cursor, nil
+}
+func (r *bankConnectionResolver) EndCursor(ctx context.Context, obj *ent.BankConnection) (string, error) {
+	if len(obj.Edges) == 0 {
+		return "", nil
+	}
+	// Кодируем курсор для последнего элемента
+	lastBank := obj.Edges[len(obj.Edges)-1].Node
+	cursor, err := EncodeCursor(lastBank.ID)
+	if err != nil {
+		return "", err
+	}
+	return cursor, nil
+}
+func (r *bankResolver) CurrencyRates(ctx context.Context, obj *ent.Bank) ([]*ent.CurrencyRate, error) {
+	// Проверяем, загружены ли данные в obj.Edges, если нет, подгружаем
+	if obj.Edges.CurrencyRates != nil {
+		return obj.Edges.CurrencyRates, nil
+	}
+	// Если данные не загружены, подгружаем вручную
+	return r.Client.Bank.QueryCurrencyRates(obj).All(ctx)
+}
+func (r *bankResolver) Offers(ctx context.Context, obj *ent.Bank) ([]*ent.Offer, error) {
+	// Проверяем, загружены ли данные в obj.Edges, если нет, подгружаем
+	if obj.Edges.Offers != nil {
+		return obj.Edges.Offers, nil
+	}
+	// Если данные не загружены, подгружаем вручную
+	return r.Client.Bank.QueryOffers(obj).All(ctx)
+}
