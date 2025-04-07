@@ -41,6 +41,7 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	Bank() BankResolver
 	BankConnection() BankConnectionResolver
 	BankEdge() BankEdgeResolver
 	PageInfo() PageInfoResolver
@@ -58,6 +59,8 @@ type ComplexityRoot struct {
 		LogoURL       func(childComplexity int) int
 		Name          func(childComplexity int) int
 		Offers        func(childComplexity int) int
+		Translation   func(childComplexity int, locale string) int
+		Translations  func(childComplexity int) int
 		Website       func(childComplexity int) int
 	}
 
@@ -70,6 +73,15 @@ type ComplexityRoot struct {
 	BankEdge struct {
 		Cursor func(childComplexity int) int
 		Node   func(childComplexity int) int
+	}
+
+	BankTranslation struct {
+		Bank        func(childComplexity int) int
+		BankID      func(childComplexity int) int
+		Description func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Locale      func(childComplexity int) int
+		Name        func(childComplexity int) int
 	}
 
 	CurrencyRate struct {
@@ -104,6 +116,9 @@ type ComplexityRoot struct {
 	}
 }
 
+type BankResolver interface {
+	Translation(ctx context.Context, obj *ent.Bank, locale string) (*ent.BankTranslation, error)
+}
 type BankConnectionResolver interface {
 	TotalCount(ctx context.Context, obj *ent.BankConnection) (int32, error)
 }
@@ -184,6 +199,25 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Bank.Offers(childComplexity), true
 
+	case "Bank.translation":
+		if e.complexity.Bank.Translation == nil {
+			break
+		}
+
+		args, err := ec.field_Bank_translation_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Bank.Translation(childComplexity, args["locale"].(string)), true
+
+	case "Bank.translations":
+		if e.complexity.Bank.Translations == nil {
+			break
+		}
+
+		return e.complexity.Bank.Translations(childComplexity), true
+
 	case "Bank.website":
 		if e.complexity.Bank.Website == nil {
 			break
@@ -225,6 +259,48 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.BankEdge.Node(childComplexity), true
+
+	case "BankTranslation.bank":
+		if e.complexity.BankTranslation.Bank == nil {
+			break
+		}
+
+		return e.complexity.BankTranslation.Bank(childComplexity), true
+
+	case "BankTranslation.bankID":
+		if e.complexity.BankTranslation.BankID == nil {
+			break
+		}
+
+		return e.complexity.BankTranslation.BankID(childComplexity), true
+
+	case "BankTranslation.description":
+		if e.complexity.BankTranslation.Description == nil {
+			break
+		}
+
+		return e.complexity.BankTranslation.Description(childComplexity), true
+
+	case "BankTranslation.id":
+		if e.complexity.BankTranslation.ID == nil {
+			break
+		}
+
+		return e.complexity.BankTranslation.ID(childComplexity), true
+
+	case "BankTranslation.locale":
+		if e.complexity.BankTranslation.Locale == nil {
+			break
+		}
+
+		return e.complexity.BankTranslation.Locale(childComplexity), true
+
+	case "BankTranslation.name":
+		if e.complexity.BankTranslation.Name == nil {
+			break
+		}
+
+		return e.complexity.BankTranslation.Name(childComplexity), true
 
 	case "CurrencyRate.bank":
 		if e.complexity.CurrencyRate.Bank == nil {
@@ -387,6 +463,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputBankTranslationWhereInput,
 		ec.unmarshalInputBankWhereInput,
 		ec.unmarshalInputCreateBankInput,
 		ec.unmarshalInputCreateCurrencyRateInput,
@@ -497,6 +574,29 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_Bank_translation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Bank_translation_argsLocale(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["locale"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Bank_translation_argsLocale(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("locale"))
+	if tmp, ok := rawArgs["locale"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
 
 func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
@@ -1103,6 +1203,127 @@ func (ec *executionContext) fieldContext_Bank_offers(_ context.Context, field gr
 	return fc, nil
 }
 
+func (ec *executionContext) _Bank_translations(ctx context.Context, field graphql.CollectedField, obj *ent.Bank) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Bank_translations(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Translations(ctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*ent.BankTranslation)
+	fc.Result = res
+	return ec.marshalOBankTranslation2ᚕᚖmybanksᚑapiᚋentᚐBankTranslationᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Bank_translations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Bank",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_BankTranslation_id(ctx, field)
+			case "bankID":
+				return ec.fieldContext_BankTranslation_bankID(ctx, field)
+			case "locale":
+				return ec.fieldContext_BankTranslation_locale(ctx, field)
+			case "name":
+				return ec.fieldContext_BankTranslation_name(ctx, field)
+			case "description":
+				return ec.fieldContext_BankTranslation_description(ctx, field)
+			case "bank":
+				return ec.fieldContext_BankTranslation_bank(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BankTranslation", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Bank_translation(ctx context.Context, field graphql.CollectedField, obj *ent.Bank) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Bank_translation(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Bank().Translation(rctx, obj, fc.Args["locale"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ent.BankTranslation)
+	fc.Result = res
+	return ec.marshalOBankTranslation2ᚖmybanksᚑapiᚋentᚐBankTranslation(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Bank_translation(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Bank",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_BankTranslation_id(ctx, field)
+			case "bankID":
+				return ec.fieldContext_BankTranslation_bankID(ctx, field)
+			case "locale":
+				return ec.fieldContext_BankTranslation_locale(ctx, field)
+			case "name":
+				return ec.fieldContext_BankTranslation_name(ctx, field)
+			case "description":
+				return ec.fieldContext_BankTranslation_description(ctx, field)
+			case "bank":
+				return ec.fieldContext_BankTranslation_bank(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BankTranslation", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Bank_translation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _BankConnection_edges(ctx context.Context, field graphql.CollectedField, obj *ent.BankConnection) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_BankConnection_edges(ctx, field)
 	if err != nil {
@@ -1298,6 +1519,10 @@ func (ec *executionContext) fieldContext_BankEdge_node(_ context.Context, field 
 				return ec.fieldContext_Bank_currencyRates(ctx, field)
 			case "offers":
 				return ec.fieldContext_Bank_offers(ctx, field)
+			case "translations":
+				return ec.fieldContext_Bank_translations(ctx, field)
+			case "translation":
+				return ec.fieldContext_Bank_translation(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bank", field.Name)
 		},
@@ -1344,6 +1569,290 @@ func (ec *executionContext) fieldContext_BankEdge_cursor(_ context.Context, fiel
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Cursor does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BankTranslation_id(ctx context.Context, field graphql.CollectedField, obj *ent.BankTranslation) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BankTranslation_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNID2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BankTranslation_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BankTranslation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BankTranslation_bankID(ctx context.Context, field graphql.CollectedField, obj *ent.BankTranslation) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BankTranslation_bankID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BankID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNID2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BankTranslation_bankID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BankTranslation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BankTranslation_locale(ctx context.Context, field graphql.CollectedField, obj *ent.BankTranslation) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BankTranslation_locale(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Locale, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BankTranslation_locale(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BankTranslation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BankTranslation_name(ctx context.Context, field graphql.CollectedField, obj *ent.BankTranslation) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BankTranslation_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BankTranslation_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BankTranslation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BankTranslation_description(ctx context.Context, field graphql.CollectedField, obj *ent.BankTranslation) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BankTranslation_description(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Description, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BankTranslation_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BankTranslation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BankTranslation_bank(ctx context.Context, field graphql.CollectedField, obj *ent.BankTranslation) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BankTranslation_bank(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Bank(ctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*ent.Bank)
+	fc.Result = res
+	return ec.marshalNBank2ᚖmybanksᚑapiᚋentᚐBank(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BankTranslation_bank(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BankTranslation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Bank_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Bank_name(ctx, field)
+			case "country":
+				return ec.fieldContext_Bank_country(ctx, field)
+			case "website":
+				return ec.fieldContext_Bank_website(ctx, field)
+			case "logoURL":
+				return ec.fieldContext_Bank_logoURL(ctx, field)
+			case "currencyRates":
+				return ec.fieldContext_Bank_currencyRates(ctx, field)
+			case "offers":
+				return ec.fieldContext_Bank_offers(ctx, field)
+			case "translations":
+				return ec.fieldContext_Bank_translations(ctx, field)
+			case "translation":
+				return ec.fieldContext_Bank_translation(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Bank", field.Name)
 		},
 	}
 	return fc, nil
@@ -1534,6 +2043,10 @@ func (ec *executionContext) fieldContext_CurrencyRate_bank(_ context.Context, fi
 				return ec.fieldContext_Bank_currencyRates(ctx, field)
 			case "offers":
 				return ec.fieldContext_Bank_offers(ctx, field)
+			case "translations":
+				return ec.fieldContext_Bank_translations(ctx, field)
+			case "translation":
+				return ec.fieldContext_Bank_translation(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bank", field.Name)
 		},
@@ -1770,6 +2283,10 @@ func (ec *executionContext) fieldContext_Offer_bank(_ context.Context, field gra
 				return ec.fieldContext_Bank_currencyRates(ctx, field)
 			case "offers":
 				return ec.fieldContext_Bank_offers(ctx, field)
+			case "translations":
+				return ec.fieldContext_Bank_translations(ctx, field)
+			case "translation":
+				return ec.fieldContext_Bank_translation(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bank", field.Name)
 		},
@@ -2277,6 +2794,10 @@ func (ec *executionContext) fieldContext_Query_bank(ctx context.Context, field g
 				return ec.fieldContext_Bank_currencyRates(ctx, field)
 			case "offers":
 				return ec.fieldContext_Bank_offers(ctx, field)
+			case "translations":
+				return ec.fieldContext_Bank_translations(ctx, field)
+			case "translation":
+				return ec.fieldContext_Bank_translation(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Bank", field.Name)
 		},
@@ -4377,6 +4898,418 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputBankTranslationWhereInput(ctx context.Context, obj any) (model.BankTranslationWhereInput, error) {
+	var it model.BankTranslationWhereInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "bankID", "bankIDNEQ", "bankIDIn", "bankIDNotIn", "locale", "localeNEQ", "localeIn", "localeNotIn", "localeGT", "localeGTE", "localeLT", "localeLTE", "localeContains", "localeHasPrefix", "localeHasSuffix", "localeEqualFold", "localeContainsFold", "name", "nameNEQ", "nameIn", "nameNotIn", "nameGT", "nameGTE", "nameLT", "nameLTE", "nameContains", "nameHasPrefix", "nameHasSuffix", "nameEqualFold", "nameContainsFold", "description", "descriptionNEQ", "descriptionIn", "descriptionNotIn", "descriptionGT", "descriptionGTE", "descriptionLT", "descriptionLTE", "descriptionContains", "descriptionHasPrefix", "descriptionHasSuffix", "descriptionEqualFold", "descriptionContainsFold", "hasBank", "hasBankWith"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "not":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("not"))
+			data, err := ec.unmarshalOBankTranslationWhereInput2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBankTranslationWhereInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Not = data
+		case "and":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("and"))
+			data, err := ec.unmarshalOBankTranslationWhereInput2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐBankTranslationWhereInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.And = data
+		case "or":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("or"))
+			data, err := ec.unmarshalOBankTranslationWhereInput2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐBankTranslationWhereInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Or = data
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = data
+		case "idNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idNEQ"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IDNeq = data
+		case "idIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idIn"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IDIn = data
+		case "idNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idNotIn"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IDNotIn = data
+		case "idGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idGT"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IDGt = data
+		case "idGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idGTE"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IDGte = data
+		case "idLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idLT"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IDLt = data
+		case "idLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idLTE"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IDLte = data
+		case "bankID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("bankID"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BankID = data
+		case "bankIDNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("bankIDNEQ"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BankIdneq = data
+		case "bankIDIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("bankIDIn"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BankIDIn = data
+		case "bankIDNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("bankIDNotIn"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BankIDNotIn = data
+		case "locale":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("locale"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Locale = data
+		case "localeNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("localeNEQ"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LocaleNeq = data
+		case "localeIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("localeIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LocaleIn = data
+		case "localeNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("localeNotIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LocaleNotIn = data
+		case "localeGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("localeGT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LocaleGt = data
+		case "localeGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("localeGTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LocaleGte = data
+		case "localeLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("localeLT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LocaleLt = data
+		case "localeLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("localeLTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LocaleLte = data
+		case "localeContains":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("localeContains"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LocaleContains = data
+		case "localeHasPrefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("localeHasPrefix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LocaleHasPrefix = data
+		case "localeHasSuffix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("localeHasSuffix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LocaleHasSuffix = data
+		case "localeEqualFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("localeEqualFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LocaleEqualFold = data
+		case "localeContainsFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("localeContainsFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LocaleContainsFold = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "nameNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameNEQ"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameNeq = data
+		case "nameIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameIn = data
+		case "nameNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameNotIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameNotIn = data
+		case "nameGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameGT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameGt = data
+		case "nameGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameGTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameGte = data
+		case "nameLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameLT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameLt = data
+		case "nameLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameLTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameLte = data
+		case "nameContains":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameContains"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameContains = data
+		case "nameHasPrefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameHasPrefix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameHasPrefix = data
+		case "nameHasSuffix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameHasSuffix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameHasSuffix = data
+		case "nameEqualFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameEqualFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameEqualFold = data
+		case "nameContainsFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nameContainsFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NameContainsFold = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		case "descriptionNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("descriptionNEQ"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DescriptionNeq = data
+		case "descriptionIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("descriptionIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DescriptionIn = data
+		case "descriptionNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("descriptionNotIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DescriptionNotIn = data
+		case "descriptionGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("descriptionGT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DescriptionGt = data
+		case "descriptionGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("descriptionGTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DescriptionGte = data
+		case "descriptionLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("descriptionLT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DescriptionLt = data
+		case "descriptionLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("descriptionLTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DescriptionLte = data
+		case "descriptionContains":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("descriptionContains"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DescriptionContains = data
+		case "descriptionHasPrefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("descriptionHasPrefix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DescriptionHasPrefix = data
+		case "descriptionHasSuffix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("descriptionHasSuffix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DescriptionHasSuffix = data
+		case "descriptionEqualFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("descriptionEqualFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DescriptionEqualFold = data
+		case "descriptionContainsFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("descriptionContainsFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DescriptionContainsFold = data
+		case "hasBank":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hasBank"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HasBank = data
+		case "hasBankWith":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hasBankWith"))
+			data, err := ec.unmarshalOBankWhereInput2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐBankWhereInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HasBankWith = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputBankWhereInput(ctx context.Context, obj any) (model.BankWhereInput, error) {
 	var it model.BankWhereInput
 	asMap := map[string]any{}
@@ -4384,7 +5317,7 @@ func (ec *executionContext) unmarshalInputBankWhereInput(ctx context.Context, ob
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "name", "nameNEQ", "nameIn", "nameNotIn", "nameGT", "nameGTE", "nameLT", "nameLTE", "nameContains", "nameHasPrefix", "nameHasSuffix", "nameEqualFold", "nameContainsFold", "country", "countryNEQ", "countryIn", "countryNotIn", "countryGT", "countryGTE", "countryLT", "countryLTE", "countryContains", "countryHasPrefix", "countryHasSuffix", "countryEqualFold", "countryContainsFold", "website", "websiteNEQ", "websiteIn", "websiteNotIn", "websiteGT", "websiteGTE", "websiteLT", "websiteLTE", "websiteContains", "websiteHasPrefix", "websiteHasSuffix", "websiteIsNil", "websiteNotNil", "websiteEqualFold", "websiteContainsFold", "logoURL", "logoURLNEQ", "logoURLIn", "logoURLNotIn", "logoURLGT", "logoURLGTE", "logoURLLT", "logoURLLTE", "logoURLContains", "logoURLHasPrefix", "logoURLHasSuffix", "logoURLIsNil", "logoURLNotNil", "logoURLEqualFold", "logoURLContainsFold", "hasCurrencyRates", "hasCurrencyRatesWith", "hasOffers", "hasOffersWith"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "name", "nameNEQ", "nameIn", "nameNotIn", "nameGT", "nameGTE", "nameLT", "nameLTE", "nameContains", "nameHasPrefix", "nameHasSuffix", "nameEqualFold", "nameContainsFold", "country", "countryNEQ", "countryIn", "countryNotIn", "countryGT", "countryGTE", "countryLT", "countryLTE", "countryContains", "countryHasPrefix", "countryHasSuffix", "countryEqualFold", "countryContainsFold", "website", "websiteNEQ", "websiteIn", "websiteNotIn", "websiteGT", "websiteGTE", "websiteLT", "websiteLTE", "websiteContains", "websiteHasPrefix", "websiteHasSuffix", "websiteIsNil", "websiteNotNil", "websiteEqualFold", "websiteContainsFold", "logoURL", "logoURLNEQ", "logoURLIn", "logoURLNotIn", "logoURLGT", "logoURLGTE", "logoURLLT", "logoURLLTE", "logoURLContains", "logoURLHasPrefix", "logoURLHasSuffix", "logoURLIsNil", "logoURLNotNil", "logoURLEqualFold", "logoURLContainsFold", "hasCurrencyRates", "hasCurrencyRatesWith", "hasOffers", "hasOffersWith", "hasTranslations", "hasTranslationsWith"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -4888,6 +5821,20 @@ func (ec *executionContext) unmarshalInputBankWhereInput(ctx context.Context, ob
 				return it, err
 			}
 			it.HasOffersWith = data
+		case "hasTranslations":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hasTranslations"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HasTranslations = data
+		case "hasTranslationsWith":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hasTranslationsWith"))
+			data, err := ec.unmarshalOBankTranslationWhereInput2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐBankTranslationWhereInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HasTranslationsWith = data
 		}
 	}
 
@@ -4901,7 +5848,7 @@ func (ec *executionContext) unmarshalInputCreateBankInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "country", "website", "logoURL", "currencyRateIDs", "offerIDs"}
+	fieldsInOrder := [...]string{"name", "country", "website", "logoURL", "currencyRateIDs", "offerIDs", "translationIDs"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -4950,6 +5897,13 @@ func (ec *executionContext) unmarshalInputCreateBankInput(ctx context.Context, o
 				return it, err
 			}
 			it.OfferIDs = data
+		case "translationIDs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("translationIDs"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TranslationIDs = data
 		}
 	}
 
@@ -5694,7 +6648,7 @@ func (ec *executionContext) unmarshalInputUpdateBankInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "country", "website", "clearWebsite", "logoURL", "clearLogoURL", "addCurrencyRateIDs", "removeCurrencyRateIDs", "clearCurrencyRates", "addOfferIDs", "removeOfferIDs", "clearOffers"}
+	fieldsInOrder := [...]string{"name", "country", "website", "clearWebsite", "logoURL", "clearLogoURL", "addCurrencyRateIDs", "removeCurrencyRateIDs", "clearCurrencyRates", "addOfferIDs", "removeOfferIDs", "clearOffers", "addTranslationIDs", "removeTranslationIDs", "clearTranslations"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -5785,6 +6739,27 @@ func (ec *executionContext) unmarshalInputUpdateBankInput(ctx context.Context, o
 				return it, err
 			}
 			it.ClearOffers = data
+		case "addTranslationIDs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("addTranslationIDs"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AddTranslationIDs = data
+		case "removeTranslationIDs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("removeTranslationIDs"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RemoveTranslationIDs = data
+		case "clearTranslations":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearTranslations"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearTranslations = data
 		}
 	}
 
@@ -5898,6 +6873,11 @@ func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj
 			return graphql.Null
 		}
 		return ec._CurrencyRate(ctx, sel, obj)
+	case *ent.BankTranslation:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._BankTranslation(ctx, sel, obj)
 	case *ent.Bank:
 		if obj == nil {
 			return graphql.Null
@@ -5985,6 +6965,72 @@ func (ec *executionContext) _Bank(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._Bank_offers(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "translations":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Bank_translations(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "translation":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Bank_translation(ctx, field, obj)
 				return res
 			}
 
@@ -6131,6 +7177,101 @@ func (ec *executionContext) _BankEdge(ctx context.Context, sel ast.SelectionSet,
 					}
 				}()
 				res = ec._BankEdge_cursor(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var bankTranslationImplementors = []string{"BankTranslation", "Node"}
+
+func (ec *executionContext) _BankTranslation(ctx context.Context, sel ast.SelectionSet, obj *ent.BankTranslation) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, bankTranslationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BankTranslation")
+		case "id":
+			out.Values[i] = ec._BankTranslation_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "bankID":
+			out.Values[i] = ec._BankTranslation_bankID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "locale":
+			out.Values[i] = ec._BankTranslation_locale(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "name":
+			out.Values[i] = ec._BankTranslation_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "description":
+			out.Values[i] = ec._BankTranslation_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "bank":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._BankTranslation_bank(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -7000,6 +8141,21 @@ func (ec *executionContext) marshalNBankConnection2ᚖmybanksᚑapiᚋentᚐBank
 	return ec._BankConnection(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNBankTranslation2ᚖmybanksᚑapiᚋentᚐBankTranslation(ctx context.Context, sel ast.SelectionSet, v *ent.BankTranslation) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BankTranslation(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNBankTranslationWhereInput2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBankTranslationWhereInput(ctx context.Context, v any) (*model.BankTranslationWhereInput, error) {
+	res, err := ec.unmarshalInputBankTranslationWhereInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNBankWhereInput2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBankWhereInput(ctx context.Context, v any) (*model.BankWhereInput, error) {
 	res, err := ec.unmarshalInputBankWhereInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
@@ -7604,6 +8760,86 @@ func (ec *executionContext) marshalOBankEdge2ᚖmybanksᚑapiᚋentᚐBankEdge(c
 		return graphql.Null
 	}
 	return ec._BankEdge(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOBankTranslation2ᚕᚖmybanksᚑapiᚋentᚐBankTranslationᚄ(ctx context.Context, sel ast.SelectionSet, v []*ent.BankTranslation) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNBankTranslation2ᚖmybanksᚑapiᚋentᚐBankTranslation(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalOBankTranslation2ᚖmybanksᚑapiᚋentᚐBankTranslation(ctx context.Context, sel ast.SelectionSet, v *ent.BankTranslation) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._BankTranslation(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOBankTranslationWhereInput2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐBankTranslationWhereInputᚄ(ctx context.Context, v any) ([]*model.BankTranslationWhereInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.BankTranslationWhereInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNBankTranslationWhereInput2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBankTranslationWhereInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalOBankTranslationWhereInput2ᚖmybanksᚑapiᚋgraphᚋmodelᚐBankTranslationWhereInput(ctx context.Context, v any) (*model.BankTranslationWhereInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputBankTranslationWhereInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOBankWhereInput2ᚕᚖmybanksᚑapiᚋgraphᚋmodelᚐBankWhereInputᚄ(ctx context.Context, v any) ([]*model.BankWhereInput, error) {

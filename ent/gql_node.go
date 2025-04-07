@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"mybanks-api/ent/bank"
+	"mybanks-api/ent/banktranslation"
 	"mybanks-api/ent/currencyrate"
 	"mybanks-api/ent/offer"
 	"sync"
@@ -29,6 +30,11 @@ var bankImplementors = []string{"Bank", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
 func (*Bank) IsNode() {}
+
+var banktranslationImplementors = []string{"BankTranslation", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*BankTranslation) IsNode() {}
 
 var currencyrateImplementors = []string{"CurrencyRate", "Node"}
 
@@ -103,6 +109,15 @@ func (c *Client) noder(ctx context.Context, table string, id int) (Noder, error)
 			Where(bank.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
 			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, bankImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
+	case banktranslation.Table:
+		query := c.BankTranslation.Query().
+			Where(banktranslation.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, banktranslationImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -202,6 +217,22 @@ func (c *Client) noders(ctx context.Context, table string, ids []int) ([]Noder, 
 		query := c.Bank.Query().
 			Where(bank.IDIn(ids...))
 		query, err := query.CollectFields(ctx, bankImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
+	case banktranslation.Table:
+		query := c.BankTranslation.Query().
+			Where(banktranslation.IDIn(ids...))
+		query, err := query.CollectFields(ctx, banktranslationImplementors...)
 		if err != nil {
 			return nil, err
 		}

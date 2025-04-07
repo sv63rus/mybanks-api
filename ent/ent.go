@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"mybanks-api/ent/bank"
+	"mybanks-api/ent/banktranslation"
 	"mybanks-api/ent/currencyrate"
 	"mybanks-api/ent/offer"
 	"reflect"
@@ -75,9 +76,10 @@ var (
 func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			bank.Table:         bank.ValidColumn,
-			currencyrate.Table: currencyrate.ValidColumn,
-			offer.Table:        offer.ValidColumn,
+			bank.Table:            bank.ValidColumn,
+			banktranslation.Table: banktranslation.ValidColumn,
+			currencyrate.Table:    currencyrate.ValidColumn,
+			offer.Table:           offer.ValidColumn,
 		})
 	})
 	return columnCheck(table, column)

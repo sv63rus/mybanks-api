@@ -10,6 +10,7 @@ type CreateBankInput struct {
 	LogoURL         *string
 	CurrencyRateIDs []int
 	OfferIDs        []int
+	TranslationIDs  []int
 }
 
 // Mutate applies the CreateBankInput on the BankMutation builder.
@@ -27,6 +28,9 @@ func (i *CreateBankInput) Mutate(m *BankMutation) {
 	}
 	if v := i.OfferIDs; len(v) > 0 {
 		m.AddOfferIDs(v...)
+	}
+	if v := i.TranslationIDs; len(v) > 0 {
+		m.AddTranslationIDs(v...)
 	}
 }
 
@@ -50,6 +54,9 @@ type UpdateBankInput struct {
 	ClearOffers           bool
 	AddOfferIDs           []int
 	RemoveOfferIDs        []int
+	ClearTranslations     bool
+	AddTranslationIDs     []int
+	RemoveTranslationIDs  []int
 }
 
 // Mutate applies the UpdateBankInput on the BankMutation builder.
@@ -89,6 +96,15 @@ func (i *UpdateBankInput) Mutate(m *BankMutation) {
 	}
 	if v := i.RemoveOfferIDs; len(v) > 0 {
 		m.RemoveOfferIDs(v...)
+	}
+	if i.ClearTranslations {
+		m.ClearTranslations()
+	}
+	if v := i.AddTranslationIDs; len(v) > 0 {
+		m.AddTranslationIDs(v...)
+	}
+	if v := i.RemoveTranslationIDs; len(v) > 0 {
+		m.RemoveTranslationIDs(v...)
 	}
 }
 

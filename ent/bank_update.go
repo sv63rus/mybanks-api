@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"mybanks-api/ent/bank"
+	"mybanks-api/ent/banktranslation"
 	"mybanks-api/ent/currencyrate"
 	"mybanks-api/ent/offer"
 	"mybanks-api/ent/predicate"
@@ -127,6 +128,21 @@ func (bu *BankUpdate) AddOffers(o ...*Offer) *BankUpdate {
 	return bu.AddOfferIDs(ids...)
 }
 
+// AddTranslationIDs adds the "translations" edge to the BankTranslation entity by IDs.
+func (bu *BankUpdate) AddTranslationIDs(ids ...int) *BankUpdate {
+	bu.mutation.AddTranslationIDs(ids...)
+	return bu
+}
+
+// AddTranslations adds the "translations" edges to the BankTranslation entity.
+func (bu *BankUpdate) AddTranslations(b ...*BankTranslation) *BankUpdate {
+	ids := make([]int, len(b))
+	for i := range b {
+		ids[i] = b[i].ID
+	}
+	return bu.AddTranslationIDs(ids...)
+}
+
 // Mutation returns the BankMutation object of the builder.
 func (bu *BankUpdate) Mutation() *BankMutation {
 	return bu.mutation
@@ -172,6 +188,27 @@ func (bu *BankUpdate) RemoveOffers(o ...*Offer) *BankUpdate {
 		ids[i] = o[i].ID
 	}
 	return bu.RemoveOfferIDs(ids...)
+}
+
+// ClearTranslations clears all "translations" edges to the BankTranslation entity.
+func (bu *BankUpdate) ClearTranslations() *BankUpdate {
+	bu.mutation.ClearTranslations()
+	return bu
+}
+
+// RemoveTranslationIDs removes the "translations" edge to BankTranslation entities by IDs.
+func (bu *BankUpdate) RemoveTranslationIDs(ids ...int) *BankUpdate {
+	bu.mutation.RemoveTranslationIDs(ids...)
+	return bu
+}
+
+// RemoveTranslations removes "translations" edges to BankTranslation entities.
+func (bu *BankUpdate) RemoveTranslations(b ...*BankTranslation) *BankUpdate {
+	ids := make([]int, len(b))
+	for i := range b {
+		ids[i] = b[i].ID
+	}
+	return bu.RemoveTranslationIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -318,6 +355,51 @@ func (bu *BankUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if bu.mutation.TranslationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   bank.TranslationsTable,
+			Columns: []string{bank.TranslationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(banktranslation.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := bu.mutation.RemovedTranslationsIDs(); len(nodes) > 0 && !bu.mutation.TranslationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   bank.TranslationsTable,
+			Columns: []string{bank.TranslationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(banktranslation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := bu.mutation.TranslationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   bank.TranslationsTable,
+			Columns: []string{bank.TranslationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(banktranslation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, bu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{bank.Label}
@@ -436,6 +518,21 @@ func (buo *BankUpdateOne) AddOffers(o ...*Offer) *BankUpdateOne {
 	return buo.AddOfferIDs(ids...)
 }
 
+// AddTranslationIDs adds the "translations" edge to the BankTranslation entity by IDs.
+func (buo *BankUpdateOne) AddTranslationIDs(ids ...int) *BankUpdateOne {
+	buo.mutation.AddTranslationIDs(ids...)
+	return buo
+}
+
+// AddTranslations adds the "translations" edges to the BankTranslation entity.
+func (buo *BankUpdateOne) AddTranslations(b ...*BankTranslation) *BankUpdateOne {
+	ids := make([]int, len(b))
+	for i := range b {
+		ids[i] = b[i].ID
+	}
+	return buo.AddTranslationIDs(ids...)
+}
+
 // Mutation returns the BankMutation object of the builder.
 func (buo *BankUpdateOne) Mutation() *BankMutation {
 	return buo.mutation
@@ -481,6 +578,27 @@ func (buo *BankUpdateOne) RemoveOffers(o ...*Offer) *BankUpdateOne {
 		ids[i] = o[i].ID
 	}
 	return buo.RemoveOfferIDs(ids...)
+}
+
+// ClearTranslations clears all "translations" edges to the BankTranslation entity.
+func (buo *BankUpdateOne) ClearTranslations() *BankUpdateOne {
+	buo.mutation.ClearTranslations()
+	return buo
+}
+
+// RemoveTranslationIDs removes the "translations" edge to BankTranslation entities by IDs.
+func (buo *BankUpdateOne) RemoveTranslationIDs(ids ...int) *BankUpdateOne {
+	buo.mutation.RemoveTranslationIDs(ids...)
+	return buo
+}
+
+// RemoveTranslations removes "translations" edges to BankTranslation entities.
+func (buo *BankUpdateOne) RemoveTranslations(b ...*BankTranslation) *BankUpdateOne {
+	ids := make([]int, len(b))
+	for i := range b {
+		ids[i] = b[i].ID
+	}
+	return buo.RemoveTranslationIDs(ids...)
 }
 
 // Where appends a list predicates to the BankUpdate builder.
@@ -650,6 +768,51 @@ func (buo *BankUpdateOne) sqlSave(ctx context.Context) (_node *Bank, err error) 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(offer.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if buo.mutation.TranslationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   bank.TranslationsTable,
+			Columns: []string{bank.TranslationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(banktranslation.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := buo.mutation.RemovedTranslationsIDs(); len(nodes) > 0 && !buo.mutation.TranslationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   bank.TranslationsTable,
+			Columns: []string{bank.TranslationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(banktranslation.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := buo.mutation.TranslationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   bank.TranslationsTable,
+			Columns: []string{bank.TranslationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(banktranslation.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

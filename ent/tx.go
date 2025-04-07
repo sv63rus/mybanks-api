@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// Bank is the client for interacting with the Bank builders.
 	Bank *BankClient
+	// BankTranslation is the client for interacting with the BankTranslation builders.
+	BankTranslation *BankTranslationClient
 	// CurrencyRate is the client for interacting with the CurrencyRate builders.
 	CurrencyRate *CurrencyRateClient
 	// Offer is the client for interacting with the Offer builders.
@@ -150,6 +152,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.Bank = NewBankClient(tx.config)
+	tx.BankTranslation = NewBankTranslationClient(tx.config)
 	tx.CurrencyRate = NewCurrencyRateClient(tx.config)
 	tx.Offer = NewOfferClient(tx.config)
 }

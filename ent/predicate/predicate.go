@@ -9,6 +9,9 @@ import (
 // Bank is the predicate function for bank builders.
 type Bank func(*sql.Selector)
 
+// BankTranslation is the predicate function for banktranslation builders.
+type BankTranslation func(*sql.Selector)
+
 // CurrencyRate is the predicate function for currencyrate builders.
 type CurrencyRate func(*sql.Selector)
 

@@ -7,8 +7,27 @@ package graph
 import (
 	"context"
 	"mybanks-api/ent"
+	"mybanks-api/ent/banktranslation"
 	"strconv"
 )
+
+// Translation is the resolver for the translation field.
+func (r *bankResolver) Translation(ctx context.Context, obj *ent.Bank, locale string) (*ent.BankTranslation, error) {
+
+	translation, err := r.Client.BankTranslation.
+		Query().
+		Where(
+			banktranslation.BankID(obj.ID),
+			banktranslation.Locale(locale),
+		).
+		Only(ctx)
+
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+
+	return translation, err
+}
 
 // Bank is the resolver for the bank field.
 func (r *queryResolver) Bank(ctx context.Context, id string) (*ent.Bank, error) {

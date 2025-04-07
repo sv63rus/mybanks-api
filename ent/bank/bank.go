@@ -24,6 +24,8 @@ const (
 	EdgeCurrencyRates = "currency_rates"
 	// EdgeOffers holds the string denoting the offers edge name in mutations.
 	EdgeOffers = "offers"
+	// EdgeTranslations holds the string denoting the translations edge name in mutations.
+	EdgeTranslations = "translations"
 	// Table holds the table name of the bank in the database.
 	Table = "banks"
 	// CurrencyRatesTable is the table that holds the currency_rates relation/edge.
@@ -40,6 +42,13 @@ const (
 	OffersInverseTable = "offers"
 	// OffersColumn is the table column denoting the offers relation/edge.
 	OffersColumn = "bank_offers"
+	// TranslationsTable is the table that holds the translations relation/edge.
+	TranslationsTable = "bank_translations"
+	// TranslationsInverseTable is the table name for the BankTranslation entity.
+	// It exists in this package in order to avoid circular dependency with the "banktranslation" package.
+	TranslationsInverseTable = "bank_translations"
+	// TranslationsColumn is the table column denoting the translations relation/edge.
+	TranslationsColumn = "bank_id"
 )
 
 // Columns holds all SQL columns for bank fields.
@@ -116,6 +125,20 @@ func ByOffers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newOffersStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByTranslationsCount orders the results by translations count.
+func ByTranslationsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newTranslationsStep(), opts...)
+	}
+}
+
+// ByTranslations orders the results by translations terms.
+func ByTranslations(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTranslationsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newCurrencyRatesStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -128,5 +151,12 @@ func newOffersStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(OffersInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, OffersTable, OffersColumn),
+	)
+}
+func newTranslationsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TranslationsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, TranslationsTable, TranslationsColumn),
 	)
 }

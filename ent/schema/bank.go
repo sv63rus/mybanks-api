@@ -35,5 +35,6 @@ func (Bank) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("currency_rates", CurrencyRate.Type),
 		edge.To("offers", Offer.Type),
+		edge.To("translations", BankTranslation.Type),
 	}
 }

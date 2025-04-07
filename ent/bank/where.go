@@ -400,6 +400,29 @@ func HasOffersWith(preds ...predicate.Offer) predicate.Bank {
 	})
 }
 
+// HasTranslations applies the HasEdge predicate on the "translations" edge.
+func HasTranslations() predicate.Bank {
+	return predicate.Bank(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, TranslationsTable, TranslationsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTranslationsWith applies the HasEdge predicate on the "translations" edge with a given conditions (other predicates).
+func HasTranslationsWith(preds ...predicate.BankTranslation) predicate.Bank {
+	return predicate.Bank(func(s *sql.Selector) {
+		step := newTranslationsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Bank) predicate.Bank {
 	return predicate.Bank(sql.AndPredicates(predicates...))

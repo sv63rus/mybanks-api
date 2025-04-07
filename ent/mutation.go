@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"mybanks-api/ent/bank"
+	"mybanks-api/ent/banktranslation"
 	"mybanks-api/ent/currencyrate"
 	"mybanks-api/ent/offer"
 	"mybanks-api/ent/predicate"
@@ -25,9 +26,10 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeBank         = "Bank"
-	TypeCurrencyRate = "CurrencyRate"
-	TypeOffer        = "Offer"
+	TypeBank            = "Bank"
+	TypeBankTranslation = "BankTranslation"
+	TypeCurrencyRate    = "CurrencyRate"
+	TypeOffer           = "Offer"
 )
 
 // BankMutation represents an operation that mutates the Bank nodes in the graph.
@@ -47,6 +49,9 @@ type BankMutation struct {
 	offers                map[int]struct{}
 	removedoffers         map[int]struct{}
 	clearedoffers         bool
+	translations          map[int]struct{}
+	removedtranslations   map[int]struct{}
+	clearedtranslations   bool
 	done                  bool
 	oldValue              func(context.Context) (*Bank, error)
 	predicates            []predicate.Bank
@@ -428,6 +433,60 @@ func (m *BankMutation) ResetOffers() {
 	m.removedoffers = nil
 }
 
+// AddTranslationIDs adds the "translations" edge to the BankTranslation entity by ids.
+func (m *BankMutation) AddTranslationIDs(ids ...int) {
+	if m.translations == nil {
+		m.translations = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.translations[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTranslations clears the "translations" edge to the BankTranslation entity.
+func (m *BankMutation) ClearTranslations() {
+	m.clearedtranslations = true
+}
+
+// TranslationsCleared reports if the "translations" edge to the BankTranslation entity was cleared.
+func (m *BankMutation) TranslationsCleared() bool {
+	return m.clearedtranslations
+}
+
+// RemoveTranslationIDs removes the "translations" edge to the BankTranslation entity by IDs.
+func (m *BankMutation) RemoveTranslationIDs(ids ...int) {
+	if m.removedtranslations == nil {
+		m.removedtranslations = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.translations, ids[i])
+		m.removedtranslations[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTranslations returns the removed IDs of the "translations" edge to the BankTranslation entity.
+func (m *BankMutation) RemovedTranslationsIDs() (ids []int) {
+	for id := range m.removedtranslations {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TranslationsIDs returns the "translations" edge IDs in the mutation.
+func (m *BankMutation) TranslationsIDs() (ids []int) {
+	for id := range m.translations {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTranslations resets all changes to the "translations" edge.
+func (m *BankMutation) ResetTranslations() {
+	m.translations = nil
+	m.clearedtranslations = false
+	m.removedtranslations = nil
+}
+
 // Where appends a list predicates to the BankMutation builder.
 func (m *BankMutation) Where(ps ...predicate.Bank) {
 	m.predicates = append(m.predicates, ps...)
@@ -627,12 +686,15 @@ func (m *BankMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *BankMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.currency_rates != nil {
 		edges = append(edges, bank.EdgeCurrencyRates)
 	}
 	if m.offers != nil {
 		edges = append(edges, bank.EdgeOffers)
+	}
+	if m.translations != nil {
+		edges = append(edges, bank.EdgeTranslations)
 	}
 	return edges
 }
@@ -653,18 +715,27 @@ func (m *BankMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case bank.EdgeTranslations:
+		ids := make([]ent.Value, 0, len(m.translations))
+		for id := range m.translations {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *BankMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.removedcurrency_rates != nil {
 		edges = append(edges, bank.EdgeCurrencyRates)
 	}
 	if m.removedoffers != nil {
 		edges = append(edges, bank.EdgeOffers)
+	}
+	if m.removedtranslations != nil {
+		edges = append(edges, bank.EdgeTranslations)
 	}
 	return edges
 }
@@ -685,18 +756,27 @@ func (m *BankMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case bank.EdgeTranslations:
+		ids := make([]ent.Value, 0, len(m.removedtranslations))
+		for id := range m.removedtranslations {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *BankMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedcurrency_rates {
 		edges = append(edges, bank.EdgeCurrencyRates)
 	}
 	if m.clearedoffers {
 		edges = append(edges, bank.EdgeOffers)
+	}
+	if m.clearedtranslations {
+		edges = append(edges, bank.EdgeTranslations)
 	}
 	return edges
 }
@@ -709,6 +789,8 @@ func (m *BankMutation) EdgeCleared(name string) bool {
 		return m.clearedcurrency_rates
 	case bank.EdgeOffers:
 		return m.clearedoffers
+	case bank.EdgeTranslations:
+		return m.clearedtranslations
 	}
 	return false
 }
@@ -731,8 +813,556 @@ func (m *BankMutation) ResetEdge(name string) error {
 	case bank.EdgeOffers:
 		m.ResetOffers()
 		return nil
+	case bank.EdgeTranslations:
+		m.ResetTranslations()
+		return nil
 	}
 	return fmt.Errorf("unknown Bank edge %s", name)
+}
+
+// BankTranslationMutation represents an operation that mutates the BankTranslation nodes in the graph.
+type BankTranslationMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	locale        *string
+	name          *string
+	description   *string
+	clearedFields map[string]struct{}
+	bank          *int
+	clearedbank   bool
+	done          bool
+	oldValue      func(context.Context) (*BankTranslation, error)
+	predicates    []predicate.BankTranslation
+}
+
+var _ ent.Mutation = (*BankTranslationMutation)(nil)
+
+// banktranslationOption allows management of the mutation configuration using functional options.
+type banktranslationOption func(*BankTranslationMutation)
+
+// newBankTranslationMutation creates new mutation for the BankTranslation entity.
+func newBankTranslationMutation(c config, op Op, opts ...banktranslationOption) *BankTranslationMutation {
+	m := &BankTranslationMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeBankTranslation,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withBankTranslationID sets the ID field of the mutation.
+func withBankTranslationID(id int) banktranslationOption {
+	return func(m *BankTranslationMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *BankTranslation
+		)
+		m.oldValue = func(ctx context.Context) (*BankTranslation, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().BankTranslation.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withBankTranslation sets the old BankTranslation of the mutation.
+func withBankTranslation(node *BankTranslation) banktranslationOption {
+	return func(m *BankTranslationMutation) {
+		m.oldValue = func(context.Context) (*BankTranslation, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m BankTranslationMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m BankTranslationMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *BankTranslationMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *BankTranslationMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().BankTranslation.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetBankID sets the "bank_id" field.
+func (m *BankTranslationMutation) SetBankID(i int) {
+	m.bank = &i
+}
+
+// BankID returns the value of the "bank_id" field in the mutation.
+func (m *BankTranslationMutation) BankID() (r int, exists bool) {
+	v := m.bank
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBankID returns the old "bank_id" field's value of the BankTranslation entity.
+// If the BankTranslation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BankTranslationMutation) OldBankID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBankID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBankID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBankID: %w", err)
+	}
+	return oldValue.BankID, nil
+}
+
+// ResetBankID resets all changes to the "bank_id" field.
+func (m *BankTranslationMutation) ResetBankID() {
+	m.bank = nil
+}
+
+// SetLocale sets the "locale" field.
+func (m *BankTranslationMutation) SetLocale(s string) {
+	m.locale = &s
+}
+
+// Locale returns the value of the "locale" field in the mutation.
+func (m *BankTranslationMutation) Locale() (r string, exists bool) {
+	v := m.locale
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLocale returns the old "locale" field's value of the BankTranslation entity.
+// If the BankTranslation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BankTranslationMutation) OldLocale(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLocale is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLocale requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLocale: %w", err)
+	}
+	return oldValue.Locale, nil
+}
+
+// ResetLocale resets all changes to the "locale" field.
+func (m *BankTranslationMutation) ResetLocale() {
+	m.locale = nil
+}
+
+// SetName sets the "name" field.
+func (m *BankTranslationMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *BankTranslationMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the BankTranslation entity.
+// If the BankTranslation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BankTranslationMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *BankTranslationMutation) ResetName() {
+	m.name = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *BankTranslationMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *BankTranslationMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the BankTranslation entity.
+// If the BankTranslation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BankTranslationMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *BankTranslationMutation) ResetDescription() {
+	m.description = nil
+}
+
+// ClearBank clears the "bank" edge to the Bank entity.
+func (m *BankTranslationMutation) ClearBank() {
+	m.clearedbank = true
+	m.clearedFields[banktranslation.FieldBankID] = struct{}{}
+}
+
+// BankCleared reports if the "bank" edge to the Bank entity was cleared.
+func (m *BankTranslationMutation) BankCleared() bool {
+	return m.clearedbank
+}
+
+// BankIDs returns the "bank" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// BankID instead. It exists only for internal usage by the builders.
+func (m *BankTranslationMutation) BankIDs() (ids []int) {
+	if id := m.bank; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetBank resets all changes to the "bank" edge.
+func (m *BankTranslationMutation) ResetBank() {
+	m.bank = nil
+	m.clearedbank = false
+}
+
+// Where appends a list predicates to the BankTranslationMutation builder.
+func (m *BankTranslationMutation) Where(ps ...predicate.BankTranslation) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the BankTranslationMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *BankTranslationMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.BankTranslation, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *BankTranslationMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *BankTranslationMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (BankTranslation).
+func (m *BankTranslationMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *BankTranslationMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.bank != nil {
+		fields = append(fields, banktranslation.FieldBankID)
+	}
+	if m.locale != nil {
+		fields = append(fields, banktranslation.FieldLocale)
+	}
+	if m.name != nil {
+		fields = append(fields, banktranslation.FieldName)
+	}
+	if m.description != nil {
+		fields = append(fields, banktranslation.FieldDescription)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *BankTranslationMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case banktranslation.FieldBankID:
+		return m.BankID()
+	case banktranslation.FieldLocale:
+		return m.Locale()
+	case banktranslation.FieldName:
+		return m.Name()
+	case banktranslation.FieldDescription:
+		return m.Description()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *BankTranslationMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case banktranslation.FieldBankID:
+		return m.OldBankID(ctx)
+	case banktranslation.FieldLocale:
+		return m.OldLocale(ctx)
+	case banktranslation.FieldName:
+		return m.OldName(ctx)
+	case banktranslation.FieldDescription:
+		return m.OldDescription(ctx)
+	}
+	return nil, fmt.Errorf("unknown BankTranslation field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BankTranslationMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case banktranslation.FieldBankID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBankID(v)
+		return nil
+	case banktranslation.FieldLocale:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLocale(v)
+		return nil
+	case banktranslation.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case banktranslation.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BankTranslation field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *BankTranslationMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *BankTranslationMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BankTranslationMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown BankTranslation numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *BankTranslationMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *BankTranslationMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *BankTranslationMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown BankTranslation nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *BankTranslationMutation) ResetField(name string) error {
+	switch name {
+	case banktranslation.FieldBankID:
+		m.ResetBankID()
+		return nil
+	case banktranslation.FieldLocale:
+		m.ResetLocale()
+		return nil
+	case banktranslation.FieldName:
+		m.ResetName()
+		return nil
+	case banktranslation.FieldDescription:
+		m.ResetDescription()
+		return nil
+	}
+	return fmt.Errorf("unknown BankTranslation field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *BankTranslationMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.bank != nil {
+		edges = append(edges, banktranslation.EdgeBank)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *BankTranslationMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case banktranslation.EdgeBank:
+		if id := m.bank; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *BankTranslationMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *BankTranslationMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *BankTranslationMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedbank {
+		edges = append(edges, banktranslation.EdgeBank)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *BankTranslationMutation) EdgeCleared(name string) bool {
+	switch name {
+	case banktranslation.EdgeBank:
+		return m.clearedbank
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *BankTranslationMutation) ClearEdge(name string) error {
+	switch name {
+	case banktranslation.EdgeBank:
+		m.ClearBank()
+		return nil
+	}
+	return fmt.Errorf("unknown BankTranslation unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *BankTranslationMutation) ResetEdge(name string) error {
+	switch name {
+	case banktranslation.EdgeBank:
+		m.ResetBank()
+		return nil
+	}
+	return fmt.Errorf("unknown BankTranslation edge %s", name)
 }
 
 // CurrencyRateMutation represents an operation that mutates the CurrencyRate nodes in the graph.

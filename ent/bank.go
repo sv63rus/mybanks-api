@@ -36,14 +36,17 @@ type BankEdges struct {
 	CurrencyRates []*CurrencyRate `json:"currency_rates,omitempty"`
 	// Offers holds the value of the offers edge.
 	Offers []*Offer `json:"offers,omitempty"`
+	// Translations holds the value of the translations edge.
+	Translations []*BankTranslation `json:"translations,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 	// totalCount holds the count of the edges above.
-	totalCount [2]map[string]int
+	totalCount [3]map[string]int
 
 	namedCurrencyRates map[string][]*CurrencyRate
 	namedOffers        map[string][]*Offer
+	namedTranslations  map[string][]*BankTranslation
 }
 
 // CurrencyRatesOrErr returns the CurrencyRates value or an error if the edge
@@ -62,6 +65,15 @@ func (e BankEdges) OffersOrErr() ([]*Offer, error) {
 		return e.Offers, nil
 	}
 	return nil, &NotLoadedError{edge: "offers"}
+}
+
+// TranslationsOrErr returns the Translations value or an error if the edge
+// was not loaded in eager-loading.
+func (e BankEdges) TranslationsOrErr() ([]*BankTranslation, error) {
+	if e.loadedTypes[2] {
+		return e.Translations, nil
+	}
+	return nil, &NotLoadedError{edge: "translations"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -139,6 +151,11 @@ func (b *Bank) QueryCurrencyRates() *CurrencyRateQuery {
 // QueryOffers queries the "offers" edge of the Bank entity.
 func (b *Bank) QueryOffers() *OfferQuery {
 	return NewBankClient(b.config).QueryOffers(b)
+}
+
+// QueryTranslations queries the "translations" edge of the Bank entity.
+func (b *Bank) QueryTranslations() *BankTranslationQuery {
+	return NewBankClient(b.config).QueryTranslations(b)
 }
 
 // Update returns a builder for updating this Bank.
@@ -224,6 +241,30 @@ func (b *Bank) appendNamedOffers(name string, edges ...*Offer) {
 		b.Edges.namedOffers[name] = []*Offer{}
 	} else {
 		b.Edges.namedOffers[name] = append(b.Edges.namedOffers[name], edges...)
+	}
+}
+
+// NamedTranslations returns the Translations named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (b *Bank) NamedTranslations(name string) ([]*BankTranslation, error) {
+	if b.Edges.namedTranslations == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := b.Edges.namedTranslations[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (b *Bank) appendNamedTranslations(name string, edges ...*BankTranslation) {
+	if b.Edges.namedTranslations == nil {
+		b.Edges.namedTranslations = make(map[string][]*BankTranslation)
+	}
+	if len(edges) == 0 {
+		b.Edges.namedTranslations[name] = []*BankTranslation{}
+	} else {
+		b.Edges.namedTranslations[name] = append(b.Edges.namedTranslations[name], edges...)
 	}
 }
 

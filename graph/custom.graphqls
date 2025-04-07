@@ -1,3 +1,6 @@
 extend type Query {
     bank(id: ID!): Bank
 }
+extend type Bank {
+    translation(locale: String!): BankTranslation
+}

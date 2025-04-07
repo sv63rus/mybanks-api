@@ -12,6 +12,7 @@ import (
 	"mybanks-api/ent/migrate"
 
 	"mybanks-api/ent/bank"
+	"mybanks-api/ent/banktranslation"
 	"mybanks-api/ent/currencyrate"
 	"mybanks-api/ent/offer"
 
@@ -28,6 +29,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// Bank is the client for interacting with the Bank builders.
 	Bank *BankClient
+	// BankTranslation is the client for interacting with the BankTranslation builders.
+	BankTranslation *BankTranslationClient
 	// CurrencyRate is the client for interacting with the CurrencyRate builders.
 	CurrencyRate *CurrencyRateClient
 	// Offer is the client for interacting with the Offer builders.
@@ -46,6 +49,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Bank = NewBankClient(c.config)
+	c.BankTranslation = NewBankTranslationClient(c.config)
 	c.CurrencyRate = NewCurrencyRateClient(c.config)
 	c.Offer = NewOfferClient(c.config)
 }
@@ -138,11 +142,12 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:          ctx,
-		config:       cfg,
-		Bank:         NewBankClient(cfg),
-		CurrencyRate: NewCurrencyRateClient(cfg),
-		Offer:        NewOfferClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		Bank:            NewBankClient(cfg),
+		BankTranslation: NewBankTranslationClient(cfg),
+		CurrencyRate:    NewCurrencyRateClient(cfg),
+		Offer:           NewOfferClient(cfg),
 	}, nil
 }
 
@@ -160,11 +165,12 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:          ctx,
-		config:       cfg,
-		Bank:         NewBankClient(cfg),
-		CurrencyRate: NewCurrencyRateClient(cfg),
-		Offer:        NewOfferClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		Bank:            NewBankClient(cfg),
+		BankTranslation: NewBankTranslationClient(cfg),
+		CurrencyRate:    NewCurrencyRateClient(cfg),
+		Offer:           NewOfferClient(cfg),
 	}, nil
 }
 
@@ -194,6 +200,7 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	c.Bank.Use(hooks...)
+	c.BankTranslation.Use(hooks...)
 	c.CurrencyRate.Use(hooks...)
 	c.Offer.Use(hooks...)
 }
@@ -202,6 +209,7 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.Bank.Intercept(interceptors...)
+	c.BankTranslation.Intercept(interceptors...)
 	c.CurrencyRate.Intercept(interceptors...)
 	c.Offer.Intercept(interceptors...)
 }
@@ -211,6 +219,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *BankMutation:
 		return c.Bank.mutate(ctx, m)
+	case *BankTranslationMutation:
+		return c.BankTranslation.mutate(ctx, m)
 	case *CurrencyRateMutation:
 		return c.CurrencyRate.mutate(ctx, m)
 	case *OfferMutation:
@@ -360,6 +370,22 @@ func (c *BankClient) QueryOffers(b *Bank) *OfferQuery {
 	return query
 }
 
+// QueryTranslations queries the translations edge of a Bank.
+func (c *BankClient) QueryTranslations(b *Bank) *BankTranslationQuery {
+	query := (&BankTranslationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := b.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(bank.Table, bank.FieldID, id),
+			sqlgraph.To(banktranslation.Table, banktranslation.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, bank.TranslationsTable, bank.TranslationsColumn),
+		)
+		fromV = sqlgraph.Neighbors(b.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *BankClient) Hooks() []Hook {
 	return c.hooks.Bank
@@ -382,6 +408,155 @@ func (c *BankClient) mutate(ctx context.Context, m *BankMutation) (Value, error)
 		return (&BankDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Bank mutation op: %q", m.Op())
+	}
+}
+
+// BankTranslationClient is a client for the BankTranslation schema.
+type BankTranslationClient struct {
+	config
+}
+
+// NewBankTranslationClient returns a client for the BankTranslation from the given config.
+func NewBankTranslationClient(c config) *BankTranslationClient {
+	return &BankTranslationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `banktranslation.Hooks(f(g(h())))`.
+func (c *BankTranslationClient) Use(hooks ...Hook) {
+	c.hooks.BankTranslation = append(c.hooks.BankTranslation, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `banktranslation.Intercept(f(g(h())))`.
+func (c *BankTranslationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BankTranslation = append(c.inters.BankTranslation, interceptors...)
+}
+
+// Create returns a builder for creating a BankTranslation entity.
+func (c *BankTranslationClient) Create() *BankTranslationCreate {
+	mutation := newBankTranslationMutation(c.config, OpCreate)
+	return &BankTranslationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BankTranslation entities.
+func (c *BankTranslationClient) CreateBulk(builders ...*BankTranslationCreate) *BankTranslationCreateBulk {
+	return &BankTranslationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BankTranslationClient) MapCreateBulk(slice any, setFunc func(*BankTranslationCreate, int)) *BankTranslationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BankTranslationCreateBulk{err: fmt.Errorf("calling to BankTranslationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BankTranslationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BankTranslationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BankTranslation.
+func (c *BankTranslationClient) Update() *BankTranslationUpdate {
+	mutation := newBankTranslationMutation(c.config, OpUpdate)
+	return &BankTranslationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BankTranslationClient) UpdateOne(bt *BankTranslation) *BankTranslationUpdateOne {
+	mutation := newBankTranslationMutation(c.config, OpUpdateOne, withBankTranslation(bt))
+	return &BankTranslationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BankTranslationClient) UpdateOneID(id int) *BankTranslationUpdateOne {
+	mutation := newBankTranslationMutation(c.config, OpUpdateOne, withBankTranslationID(id))
+	return &BankTranslationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BankTranslation.
+func (c *BankTranslationClient) Delete() *BankTranslationDelete {
+	mutation := newBankTranslationMutation(c.config, OpDelete)
+	return &BankTranslationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BankTranslationClient) DeleteOne(bt *BankTranslation) *BankTranslationDeleteOne {
+	return c.DeleteOneID(bt.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BankTranslationClient) DeleteOneID(id int) *BankTranslationDeleteOne {
+	builder := c.Delete().Where(banktranslation.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BankTranslationDeleteOne{builder}
+}
+
+// Query returns a query builder for BankTranslation.
+func (c *BankTranslationClient) Query() *BankTranslationQuery {
+	return &BankTranslationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBankTranslation},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BankTranslation entity by its id.
+func (c *BankTranslationClient) Get(ctx context.Context, id int) (*BankTranslation, error) {
+	return c.Query().Where(banktranslation.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BankTranslationClient) GetX(ctx context.Context, id int) *BankTranslation {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryBank queries the bank edge of a BankTranslation.
+func (c *BankTranslationClient) QueryBank(bt *BankTranslation) *BankQuery {
+	query := (&BankClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := bt.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(banktranslation.Table, banktranslation.FieldID, id),
+			sqlgraph.To(bank.Table, bank.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, banktranslation.BankTable, banktranslation.BankColumn),
+		)
+		fromV = sqlgraph.Neighbors(bt.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *BankTranslationClient) Hooks() []Hook {
+	return c.hooks.BankTranslation
+}
+
+// Interceptors returns the client interceptors.
+func (c *BankTranslationClient) Interceptors() []Interceptor {
+	return c.inters.BankTranslation
+}
+
+func (c *BankTranslationClient) mutate(ctx context.Context, m *BankTranslationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BankTranslationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BankTranslationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BankTranslationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BankTranslationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BankTranslation mutation op: %q", m.Op())
 	}
 }
 
@@ -686,9 +861,9 @@ func (c *OfferClient) mutate(ctx context.Context, m *OfferMutation) (Value, erro
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Bank, CurrencyRate, Offer []ent.Hook
+		Bank, BankTranslation, CurrencyRate, Offer []ent.Hook
 	}
 	inters struct {
-		Bank, CurrencyRate, Offer []ent.Interceptor
+		Bank, BankTranslation, CurrencyRate, Offer []ent.Interceptor
 	}
 )

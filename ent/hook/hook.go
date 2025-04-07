@@ -20,6 +20,18 @@ func (f BankFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BankMutation", m)
 }
 
+// The BankTranslationFunc type is an adapter to allow the use of ordinary
+// function as BankTranslation mutator.
+type BankTranslationFunc func(context.Context, *ent.BankTranslationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BankTranslationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BankTranslationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BankTranslationMutation", m)
+}
+
 // The CurrencyRateFunc type is an adapter to allow the use of ordinary
 // function as CurrencyRate mutator.
 type CurrencyRateFunc func(context.Context, *ent.CurrencyRateMutation) (ent.Value, error)

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"mybanks-api/ent/bank"
+	"mybanks-api/ent/banktranslation"
 	"mybanks-api/ent/currencyrate"
 	"mybanks-api/ent/offer"
 
@@ -343,6 +344,255 @@ func (b *Bank) ToEdge(order *BankOrder) *BankEdge {
 	return &BankEdge{
 		Node:   b,
 		Cursor: order.Field.toCursor(b),
+	}
+}
+
+// BankTranslationEdge is the edge representation of BankTranslation.
+type BankTranslationEdge struct {
+	Node   *BankTranslation `json:"node"`
+	Cursor Cursor           `json:"cursor"`
+}
+
+// BankTranslationConnection is the connection containing edges to BankTranslation.
+type BankTranslationConnection struct {
+	Edges      []*BankTranslationEdge `json:"edges"`
+	PageInfo   PageInfo               `json:"pageInfo"`
+	TotalCount int                    `json:"totalCount"`
+}
+
+func (c *BankTranslationConnection) build(nodes []*BankTranslation, pager *banktranslationPager, after *Cursor, first *int, before *Cursor, last *int) {
+	c.PageInfo.HasNextPage = before != nil
+	c.PageInfo.HasPreviousPage = after != nil
+	if first != nil && *first+1 == len(nodes) {
+		c.PageInfo.HasNextPage = true
+		nodes = nodes[:len(nodes)-1]
+	} else if last != nil && *last+1 == len(nodes) {
+		c.PageInfo.HasPreviousPage = true
+		nodes = nodes[:len(nodes)-1]
+	}
+	var nodeAt func(int) *BankTranslation
+	if last != nil {
+		n := len(nodes) - 1
+		nodeAt = func(i int) *BankTranslation {
+			return nodes[n-i]
+		}
+	} else {
+		nodeAt = func(i int) *BankTranslation {
+			return nodes[i]
+		}
+	}
+	c.Edges = make([]*BankTranslationEdge, len(nodes))
+	for i := range nodes {
+		node := nodeAt(i)
+		c.Edges[i] = &BankTranslationEdge{
+			Node:   node,
+			Cursor: pager.toCursor(node),
+		}
+	}
+	if l := len(c.Edges); l > 0 {
+		c.PageInfo.StartCursor = &c.Edges[0].Cursor
+		c.PageInfo.EndCursor = &c.Edges[l-1].Cursor
+	}
+	if c.TotalCount == 0 {
+		c.TotalCount = len(nodes)
+	}
+}
+
+// BankTranslationPaginateOption enables pagination customization.
+type BankTranslationPaginateOption func(*banktranslationPager) error
+
+// WithBankTranslationOrder configures pagination ordering.
+func WithBankTranslationOrder(order *BankTranslationOrder) BankTranslationPaginateOption {
+	if order == nil {
+		order = DefaultBankTranslationOrder
+	}
+	o := *order
+	return func(pager *banktranslationPager) error {
+		if err := o.Direction.Validate(); err != nil {
+			return err
+		}
+		if o.Field == nil {
+			o.Field = DefaultBankTranslationOrder.Field
+		}
+		pager.order = &o
+		return nil
+	}
+}
+
+// WithBankTranslationFilter configures pagination filter.
+func WithBankTranslationFilter(filter func(*BankTranslationQuery) (*BankTranslationQuery, error)) BankTranslationPaginateOption {
+	return func(pager *banktranslationPager) error {
+		if filter == nil {
+			return errors.New("BankTranslationQuery filter cannot be nil")
+		}
+		pager.filter = filter
+		return nil
+	}
+}
+
+type banktranslationPager struct {
+	reverse bool
+	order   *BankTranslationOrder
+	filter  func(*BankTranslationQuery) (*BankTranslationQuery, error)
+}
+
+func newBankTranslationPager(opts []BankTranslationPaginateOption, reverse bool) (*banktranslationPager, error) {
+	pager := &banktranslationPager{reverse: reverse}
+	for _, opt := range opts {
+		if err := opt(pager); err != nil {
+			return nil, err
+		}
+	}
+	if pager.order == nil {
+		pager.order = DefaultBankTranslationOrder
+	}
+	return pager, nil
+}
+
+func (p *banktranslationPager) applyFilter(query *BankTranslationQuery) (*BankTranslationQuery, error) {
+	if p.filter != nil {
+		return p.filter(query)
+	}
+	return query, nil
+}
+
+func (p *banktranslationPager) toCursor(bt *BankTranslation) Cursor {
+	return p.order.Field.toCursor(bt)
+}
+
+func (p *banktranslationPager) applyCursors(query *BankTranslationQuery, after, before *Cursor) (*BankTranslationQuery, error) {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultBankTranslationOrder.Field.column, p.order.Field.column, direction) {
+		query = query.Where(predicate)
+	}
+	return query, nil
+}
+
+func (p *banktranslationPager) applyOrder(query *BankTranslationQuery) *BankTranslationQuery {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
+	if p.order.Field != DefaultBankTranslationOrder.Field {
+		query = query.Order(DefaultBankTranslationOrder.Field.toTerm(direction.OrderTermOption()))
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return query
+}
+
+func (p *banktranslationPager) orderExpr(query *BankTranslationQuery) sql.Querier {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return sql.ExprFunc(func(b *sql.Builder) {
+		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
+		if p.order.Field != DefaultBankTranslationOrder.Field {
+			b.Comma().Ident(DefaultBankTranslationOrder.Field.column).Pad().WriteString(string(direction))
+		}
+	})
+}
+
+// Paginate executes the query and returns a relay based cursor connection to BankTranslation.
+func (bt *BankTranslationQuery) Paginate(
+	ctx context.Context, after *Cursor, first *int,
+	before *Cursor, last *int, opts ...BankTranslationPaginateOption,
+) (*BankTranslationConnection, error) {
+	if err := validateFirstLast(first, last); err != nil {
+		return nil, err
+	}
+	pager, err := newBankTranslationPager(opts, last != nil)
+	if err != nil {
+		return nil, err
+	}
+	if bt, err = pager.applyFilter(bt); err != nil {
+		return nil, err
+	}
+	conn := &BankTranslationConnection{Edges: []*BankTranslationEdge{}}
+	ignoredEdges := !hasCollectedField(ctx, edgesField)
+	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
+		hasPagination := after != nil || first != nil || before != nil || last != nil
+		if hasPagination || ignoredEdges {
+			c := bt.Clone()
+			c.ctx.Fields = nil
+			if conn.TotalCount, err = c.Count(ctx); err != nil {
+				return nil, err
+			}
+			conn.PageInfo.HasNextPage = first != nil && conn.TotalCount > 0
+			conn.PageInfo.HasPreviousPage = last != nil && conn.TotalCount > 0
+		}
+	}
+	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
+		return conn, nil
+	}
+	if bt, err = pager.applyCursors(bt, after, before); err != nil {
+		return nil, err
+	}
+	limit := paginateLimit(first, last)
+	if limit != 0 {
+		bt.Limit(limit)
+	}
+	if field := collectedField(ctx, edgesField, nodeField); field != nil {
+		if err := bt.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
+			return nil, err
+		}
+	}
+	bt = pager.applyOrder(bt)
+	nodes, err := bt.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conn.build(nodes, pager, after, first, before, last)
+	return conn, nil
+}
+
+// BankTranslationOrderField defines the ordering field of BankTranslation.
+type BankTranslationOrderField struct {
+	// Value extracts the ordering value from the given BankTranslation.
+	Value    func(*BankTranslation) (ent.Value, error)
+	column   string // field or computed.
+	toTerm   func(...sql.OrderTermOption) banktranslation.OrderOption
+	toCursor func(*BankTranslation) Cursor
+}
+
+// BankTranslationOrder defines the ordering of BankTranslation.
+type BankTranslationOrder struct {
+	Direction OrderDirection             `json:"direction"`
+	Field     *BankTranslationOrderField `json:"field"`
+}
+
+// DefaultBankTranslationOrder is the default ordering of BankTranslation.
+var DefaultBankTranslationOrder = &BankTranslationOrder{
+	Direction: entgql.OrderDirectionAsc,
+	Field: &BankTranslationOrderField{
+		Value: func(bt *BankTranslation) (ent.Value, error) {
+			return bt.ID, nil
+		},
+		column: banktranslation.FieldID,
+		toTerm: banktranslation.ByID,
+		toCursor: func(bt *BankTranslation) Cursor {
+			return Cursor{ID: bt.ID}
+		},
+	},
+}
+
+// ToEdge converts BankTranslation into BankTranslationEdge.
+func (bt *BankTranslation) ToEdge(order *BankTranslationOrder) *BankTranslationEdge {
+	if order == nil {
+		order = DefaultBankTranslationOrder
+	}
+	return &BankTranslationEdge{
+		Node:   bt,
+		Cursor: order.Field.toCursor(bt),
 	}
 }
 

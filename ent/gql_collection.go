@@ -5,6 +5,7 @@ package ent
 import (
 	"context"
 	"mybanks-api/ent/bank"
+	"mybanks-api/ent/banktranslation"
 	"mybanks-api/ent/currencyrate"
 	"mybanks-api/ent/offer"
 
@@ -56,6 +57,19 @@ func (b *BankQuery) collectField(ctx context.Context, oneNode bool, opCtx *graph
 				return err
 			}
 			b.WithNamedOffers(alias, func(wq *OfferQuery) {
+				*wq = *query
+			})
+
+		case "translations":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&BankTranslationClient{config: b.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, banktranslationImplementors)...); err != nil {
+				return err
+			}
+			b.WithNamedTranslations(alias, func(wq *BankTranslationQuery) {
 				*wq = *query
 			})
 		case "name":
@@ -115,6 +129,103 @@ func newBankPaginateArgs(rv map[string]any) *bankPaginateArgs {
 	}
 	if v, ok := rv[whereField].(*BankWhereInput); ok {
 		args.opts = append(args.opts, WithBankFilter(v.Filter))
+	}
+	return args
+}
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (bt *BankTranslationQuery) CollectFields(ctx context.Context, satisfies ...string) (*BankTranslationQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return bt, nil
+	}
+	if err := bt.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return bt, nil
+}
+
+func (bt *BankTranslationQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(banktranslation.Columns))
+		selectedFields = []string{banktranslation.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+
+		case "bank":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&BankClient{config: bt.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, bankImplementors)...); err != nil {
+				return err
+			}
+			bt.withBank = query
+			if _, ok := fieldSeen[banktranslation.FieldBankID]; !ok {
+				selectedFields = append(selectedFields, banktranslation.FieldBankID)
+				fieldSeen[banktranslation.FieldBankID] = struct{}{}
+			}
+		case "bankID":
+			if _, ok := fieldSeen[banktranslation.FieldBankID]; !ok {
+				selectedFields = append(selectedFields, banktranslation.FieldBankID)
+				fieldSeen[banktranslation.FieldBankID] = struct{}{}
+			}
+		case "locale":
+			if _, ok := fieldSeen[banktranslation.FieldLocale]; !ok {
+				selectedFields = append(selectedFields, banktranslation.FieldLocale)
+				fieldSeen[banktranslation.FieldLocale] = struct{}{}
+			}
+		case "name":
+			if _, ok := fieldSeen[banktranslation.FieldName]; !ok {
+				selectedFields = append(selectedFields, banktranslation.FieldName)
+				fieldSeen[banktranslation.FieldName] = struct{}{}
+			}
+		case "description":
+			if _, ok := fieldSeen[banktranslation.FieldDescription]; !ok {
+				selectedFields = append(selectedFields, banktranslation.FieldDescription)
+				fieldSeen[banktranslation.FieldDescription] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		bt.Select(selectedFields...)
+	}
+	return nil
+}
+
+type banktranslationPaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []BankTranslationPaginateOption
+}
+
+func newBankTranslationPaginateArgs(rv map[string]any) *banktranslationPaginateArgs {
+	args := &banktranslationPaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*BankTranslationWhereInput); ok {
+		args.opts = append(args.opts, WithBankTranslationFilter(v.Filter))
 	}
 	return args
 }

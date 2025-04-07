@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"mybanks-api/ent/bank"
+	"mybanks-api/ent/banktranslation"
 	"mybanks-api/ent/currencyrate"
 	"mybanks-api/ent/offer"
 	"mybanks-api/ent/predicate"
@@ -27,10 +28,12 @@ type BankQuery struct {
 	predicates             []predicate.Bank
 	withCurrencyRates      *CurrencyRateQuery
 	withOffers             *OfferQuery
+	withTranslations       *BankTranslationQuery
 	modifiers              []func(*sql.Selector)
 	loadTotal              []func(context.Context, []*Bank) error
 	withNamedCurrencyRates map[string]*CurrencyRateQuery
 	withNamedOffers        map[string]*OfferQuery
+	withNamedTranslations  map[string]*BankTranslationQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -104,6 +107,28 @@ func (bq *BankQuery) QueryOffers() *OfferQuery {
 			sqlgraph.From(bank.Table, bank.FieldID, selector),
 			sqlgraph.To(offer.Table, offer.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, bank.OffersTable, bank.OffersColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(bq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryTranslations chains the current query on the "translations" edge.
+func (bq *BankQuery) QueryTranslations() *BankTranslationQuery {
+	query := (&BankTranslationClient{config: bq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := bq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := bq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(bank.Table, bank.FieldID, selector),
+			sqlgraph.To(banktranslation.Table, banktranslation.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, bank.TranslationsTable, bank.TranslationsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(bq.driver.Dialect(), step)
 		return fromU, nil
@@ -305,6 +330,7 @@ func (bq *BankQuery) Clone() *BankQuery {
 		predicates:        append([]predicate.Bank{}, bq.predicates...),
 		withCurrencyRates: bq.withCurrencyRates.Clone(),
 		withOffers:        bq.withOffers.Clone(),
+		withTranslations:  bq.withTranslations.Clone(),
 		// clone intermediate query.
 		sql:  bq.sql.Clone(),
 		path: bq.path,
@@ -330,6 +356,17 @@ func (bq *BankQuery) WithOffers(opts ...func(*OfferQuery)) *BankQuery {
 		opt(query)
 	}
 	bq.withOffers = query
+	return bq
+}
+
+// WithTranslations tells the query-builder to eager-load the nodes that are connected to
+// the "translations" edge. The optional arguments are used to configure the query builder of the edge.
+func (bq *BankQuery) WithTranslations(opts ...func(*BankTranslationQuery)) *BankQuery {
+	query := (&BankTranslationClient{config: bq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	bq.withTranslations = query
 	return bq
 }
 
@@ -411,9 +448,10 @@ func (bq *BankQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Bank, e
 	var (
 		nodes       = []*Bank{}
 		_spec       = bq.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			bq.withCurrencyRates != nil,
 			bq.withOffers != nil,
+			bq.withTranslations != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -451,6 +489,13 @@ func (bq *BankQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Bank, e
 			return nil, err
 		}
 	}
+	if query := bq.withTranslations; query != nil {
+		if err := bq.loadTranslations(ctx, query, nodes,
+			func(n *Bank) { n.Edges.Translations = []*BankTranslation{} },
+			func(n *Bank, e *BankTranslation) { n.Edges.Translations = append(n.Edges.Translations, e) }); err != nil {
+			return nil, err
+		}
+	}
 	for name, query := range bq.withNamedCurrencyRates {
 		if err := bq.loadCurrencyRates(ctx, query, nodes,
 			func(n *Bank) { n.appendNamedCurrencyRates(name) },
@@ -462,6 +507,13 @@ func (bq *BankQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Bank, e
 		if err := bq.loadOffers(ctx, query, nodes,
 			func(n *Bank) { n.appendNamedOffers(name) },
 			func(n *Bank, e *Offer) { n.appendNamedOffers(name, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range bq.withNamedTranslations {
+		if err := bq.loadTranslations(ctx, query, nodes,
+			func(n *Bank) { n.appendNamedTranslations(name) },
+			func(n *Bank, e *BankTranslation) { n.appendNamedTranslations(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -530,6 +582,36 @@ func (bq *BankQuery) loadOffers(ctx context.Context, query *OfferQuery, nodes []
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "bank_offers" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (bq *BankQuery) loadTranslations(ctx context.Context, query *BankTranslationQuery, nodes []*Bank, init func(*Bank), assign func(*Bank, *BankTranslation)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Bank)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(banktranslation.FieldBankID)
+	}
+	query.Where(predicate.BankTranslation(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(bank.TranslationsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.BankID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "bank_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}
@@ -645,6 +727,20 @@ func (bq *BankQuery) WithNamedOffers(name string, opts ...func(*OfferQuery)) *Ba
 		bq.withNamedOffers = make(map[string]*OfferQuery)
 	}
 	bq.withNamedOffers[name] = query
+	return bq
+}
+
+// WithNamedTranslations tells the query-builder to eager-load the nodes that are connected to the "translations"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (bq *BankQuery) WithNamedTranslations(name string, opts ...func(*BankTranslationQuery)) *BankQuery {
+	query := (&BankTranslationClient{config: bq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if bq.withNamedTranslations == nil {
+		bq.withNamedTranslations = make(map[string]*BankTranslationQuery)
+	}
+	bq.withNamedTranslations[name] = query
 	return bq
 }
 

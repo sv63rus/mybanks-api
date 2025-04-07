@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"mybanks-api/ent/bank"
+	"mybanks-api/ent/banktranslation"
 	"mybanks-api/ent/currencyrate"
 	"mybanks-api/ent/offer"
 	"mybanks-api/ent/predicate"
@@ -99,6 +100,10 @@ type BankWhereInput struct {
 	// "offers" edge predicates.
 	HasOffers     *bool              `json:"hasOffers,omitempty"`
 	HasOffersWith []*OfferWhereInput `json:"hasOffersWith,omitempty"`
+
+	// "translations" edge predicates.
+	HasTranslations     *bool                        `json:"hasTranslations,omitempty"`
+	HasTranslationsWith []*BankTranslationWhereInput `json:"hasTranslationsWith,omitempty"`
 }
 
 // AddPredicates adds custom predicates to the where input to be used during the filtering phase.
@@ -401,6 +406,24 @@ func (i *BankWhereInput) P() (predicate.Bank, error) {
 		}
 		predicates = append(predicates, bank.HasOffersWith(with...))
 	}
+	if i.HasTranslations != nil {
+		p := bank.HasTranslations()
+		if !*i.HasTranslations {
+			p = bank.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasTranslationsWith) > 0 {
+		with := make([]predicate.BankTranslation, 0, len(i.HasTranslationsWith))
+		for _, w := range i.HasTranslationsWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasTranslationsWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, bank.HasTranslationsWith(with...))
+	}
 	switch len(predicates) {
 	case 0:
 		return nil, ErrEmptyBankWhereInput
@@ -408,6 +431,332 @@ func (i *BankWhereInput) P() (predicate.Bank, error) {
 		return predicates[0], nil
 	default:
 		return bank.And(predicates...), nil
+	}
+}
+
+// BankTranslationWhereInput represents a where input for filtering BankTranslation queries.
+type BankTranslationWhereInput struct {
+	Predicates []predicate.BankTranslation  `json:"-"`
+	Not        *BankTranslationWhereInput   `json:"not,omitempty"`
+	Or         []*BankTranslationWhereInput `json:"or,omitempty"`
+	And        []*BankTranslationWhereInput `json:"and,omitempty"`
+
+	// "id" field predicates.
+	ID      *int  `json:"id,omitempty"`
+	IDNEQ   *int  `json:"idNEQ,omitempty"`
+	IDIn    []int `json:"idIn,omitempty"`
+	IDNotIn []int `json:"idNotIn,omitempty"`
+	IDGT    *int  `json:"idGT,omitempty"`
+	IDGTE   *int  `json:"idGTE,omitempty"`
+	IDLT    *int  `json:"idLT,omitempty"`
+	IDLTE   *int  `json:"idLTE,omitempty"`
+
+	// "bank_id" field predicates.
+	BankID      *int  `json:"bankID,omitempty"`
+	BankIDNEQ   *int  `json:"bankIDNEQ,omitempty"`
+	BankIDIn    []int `json:"bankIDIn,omitempty"`
+	BankIDNotIn []int `json:"bankIDNotIn,omitempty"`
+
+	// "locale" field predicates.
+	Locale             *string  `json:"locale,omitempty"`
+	LocaleNEQ          *string  `json:"localeNEQ,omitempty"`
+	LocaleIn           []string `json:"localeIn,omitempty"`
+	LocaleNotIn        []string `json:"localeNotIn,omitempty"`
+	LocaleGT           *string  `json:"localeGT,omitempty"`
+	LocaleGTE          *string  `json:"localeGTE,omitempty"`
+	LocaleLT           *string  `json:"localeLT,omitempty"`
+	LocaleLTE          *string  `json:"localeLTE,omitempty"`
+	LocaleContains     *string  `json:"localeContains,omitempty"`
+	LocaleHasPrefix    *string  `json:"localeHasPrefix,omitempty"`
+	LocaleHasSuffix    *string  `json:"localeHasSuffix,omitempty"`
+	LocaleEqualFold    *string  `json:"localeEqualFold,omitempty"`
+	LocaleContainsFold *string  `json:"localeContainsFold,omitempty"`
+
+	// "name" field predicates.
+	Name             *string  `json:"name,omitempty"`
+	NameNEQ          *string  `json:"nameNEQ,omitempty"`
+	NameIn           []string `json:"nameIn,omitempty"`
+	NameNotIn        []string `json:"nameNotIn,omitempty"`
+	NameGT           *string  `json:"nameGT,omitempty"`
+	NameGTE          *string  `json:"nameGTE,omitempty"`
+	NameLT           *string  `json:"nameLT,omitempty"`
+	NameLTE          *string  `json:"nameLTE,omitempty"`
+	NameContains     *string  `json:"nameContains,omitempty"`
+	NameHasPrefix    *string  `json:"nameHasPrefix,omitempty"`
+	NameHasSuffix    *string  `json:"nameHasSuffix,omitempty"`
+	NameEqualFold    *string  `json:"nameEqualFold,omitempty"`
+	NameContainsFold *string  `json:"nameContainsFold,omitempty"`
+
+	// "description" field predicates.
+	Description             *string  `json:"description,omitempty"`
+	DescriptionNEQ          *string  `json:"descriptionNEQ,omitempty"`
+	DescriptionIn           []string `json:"descriptionIn,omitempty"`
+	DescriptionNotIn        []string `json:"descriptionNotIn,omitempty"`
+	DescriptionGT           *string  `json:"descriptionGT,omitempty"`
+	DescriptionGTE          *string  `json:"descriptionGTE,omitempty"`
+	DescriptionLT           *string  `json:"descriptionLT,omitempty"`
+	DescriptionLTE          *string  `json:"descriptionLTE,omitempty"`
+	DescriptionContains     *string  `json:"descriptionContains,omitempty"`
+	DescriptionHasPrefix    *string  `json:"descriptionHasPrefix,omitempty"`
+	DescriptionHasSuffix    *string  `json:"descriptionHasSuffix,omitempty"`
+	DescriptionEqualFold    *string  `json:"descriptionEqualFold,omitempty"`
+	DescriptionContainsFold *string  `json:"descriptionContainsFold,omitempty"`
+
+	// "bank" edge predicates.
+	HasBank     *bool             `json:"hasBank,omitempty"`
+	HasBankWith []*BankWhereInput `json:"hasBankWith,omitempty"`
+}
+
+// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
+func (i *BankTranslationWhereInput) AddPredicates(predicates ...predicate.BankTranslation) {
+	i.Predicates = append(i.Predicates, predicates...)
+}
+
+// Filter applies the BankTranslationWhereInput filter on the BankTranslationQuery builder.
+func (i *BankTranslationWhereInput) Filter(q *BankTranslationQuery) (*BankTranslationQuery, error) {
+	if i == nil {
+		return q, nil
+	}
+	p, err := i.P()
+	if err != nil {
+		if err == ErrEmptyBankTranslationWhereInput {
+			return q, nil
+		}
+		return nil, err
+	}
+	return q.Where(p), nil
+}
+
+// ErrEmptyBankTranslationWhereInput is returned in case the BankTranslationWhereInput is empty.
+var ErrEmptyBankTranslationWhereInput = errors.New("ent: empty predicate BankTranslationWhereInput")
+
+// P returns a predicate for filtering banktranslations.
+// An error is returned if the input is empty or invalid.
+func (i *BankTranslationWhereInput) P() (predicate.BankTranslation, error) {
+	var predicates []predicate.BankTranslation
+	if i.Not != nil {
+		p, err := i.Not.P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'not'", err)
+		}
+		predicates = append(predicates, banktranslation.Not(p))
+	}
+	switch n := len(i.Or); {
+	case n == 1:
+		p, err := i.Or[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'or'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		or := make([]predicate.BankTranslation, 0, n)
+		for _, w := range i.Or {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'or'", err)
+			}
+			or = append(or, p)
+		}
+		predicates = append(predicates, banktranslation.Or(or...))
+	}
+	switch n := len(i.And); {
+	case n == 1:
+		p, err := i.And[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'and'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		and := make([]predicate.BankTranslation, 0, n)
+		for _, w := range i.And {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'and'", err)
+			}
+			and = append(and, p)
+		}
+		predicates = append(predicates, banktranslation.And(and...))
+	}
+	predicates = append(predicates, i.Predicates...)
+	if i.ID != nil {
+		predicates = append(predicates, banktranslation.IDEQ(*i.ID))
+	}
+	if i.IDNEQ != nil {
+		predicates = append(predicates, banktranslation.IDNEQ(*i.IDNEQ))
+	}
+	if len(i.IDIn) > 0 {
+		predicates = append(predicates, banktranslation.IDIn(i.IDIn...))
+	}
+	if len(i.IDNotIn) > 0 {
+		predicates = append(predicates, banktranslation.IDNotIn(i.IDNotIn...))
+	}
+	if i.IDGT != nil {
+		predicates = append(predicates, banktranslation.IDGT(*i.IDGT))
+	}
+	if i.IDGTE != nil {
+		predicates = append(predicates, banktranslation.IDGTE(*i.IDGTE))
+	}
+	if i.IDLT != nil {
+		predicates = append(predicates, banktranslation.IDLT(*i.IDLT))
+	}
+	if i.IDLTE != nil {
+		predicates = append(predicates, banktranslation.IDLTE(*i.IDLTE))
+	}
+	if i.BankID != nil {
+		predicates = append(predicates, banktranslation.BankIDEQ(*i.BankID))
+	}
+	if i.BankIDNEQ != nil {
+		predicates = append(predicates, banktranslation.BankIDNEQ(*i.BankIDNEQ))
+	}
+	if len(i.BankIDIn) > 0 {
+		predicates = append(predicates, banktranslation.BankIDIn(i.BankIDIn...))
+	}
+	if len(i.BankIDNotIn) > 0 {
+		predicates = append(predicates, banktranslation.BankIDNotIn(i.BankIDNotIn...))
+	}
+	if i.Locale != nil {
+		predicates = append(predicates, banktranslation.LocaleEQ(*i.Locale))
+	}
+	if i.LocaleNEQ != nil {
+		predicates = append(predicates, banktranslation.LocaleNEQ(*i.LocaleNEQ))
+	}
+	if len(i.LocaleIn) > 0 {
+		predicates = append(predicates, banktranslation.LocaleIn(i.LocaleIn...))
+	}
+	if len(i.LocaleNotIn) > 0 {
+		predicates = append(predicates, banktranslation.LocaleNotIn(i.LocaleNotIn...))
+	}
+	if i.LocaleGT != nil {
+		predicates = append(predicates, banktranslation.LocaleGT(*i.LocaleGT))
+	}
+	if i.LocaleGTE != nil {
+		predicates = append(predicates, banktranslation.LocaleGTE(*i.LocaleGTE))
+	}
+	if i.LocaleLT != nil {
+		predicates = append(predicates, banktranslation.LocaleLT(*i.LocaleLT))
+	}
+	if i.LocaleLTE != nil {
+		predicates = append(predicates, banktranslation.LocaleLTE(*i.LocaleLTE))
+	}
+	if i.LocaleContains != nil {
+		predicates = append(predicates, banktranslation.LocaleContains(*i.LocaleContains))
+	}
+	if i.LocaleHasPrefix != nil {
+		predicates = append(predicates, banktranslation.LocaleHasPrefix(*i.LocaleHasPrefix))
+	}
+	if i.LocaleHasSuffix != nil {
+		predicates = append(predicates, banktranslation.LocaleHasSuffix(*i.LocaleHasSuffix))
+	}
+	if i.LocaleEqualFold != nil {
+		predicates = append(predicates, banktranslation.LocaleEqualFold(*i.LocaleEqualFold))
+	}
+	if i.LocaleContainsFold != nil {
+		predicates = append(predicates, banktranslation.LocaleContainsFold(*i.LocaleContainsFold))
+	}
+	if i.Name != nil {
+		predicates = append(predicates, banktranslation.NameEQ(*i.Name))
+	}
+	if i.NameNEQ != nil {
+		predicates = append(predicates, banktranslation.NameNEQ(*i.NameNEQ))
+	}
+	if len(i.NameIn) > 0 {
+		predicates = append(predicates, banktranslation.NameIn(i.NameIn...))
+	}
+	if len(i.NameNotIn) > 0 {
+		predicates = append(predicates, banktranslation.NameNotIn(i.NameNotIn...))
+	}
+	if i.NameGT != nil {
+		predicates = append(predicates, banktranslation.NameGT(*i.NameGT))
+	}
+	if i.NameGTE != nil {
+		predicates = append(predicates, banktranslation.NameGTE(*i.NameGTE))
+	}
+	if i.NameLT != nil {
+		predicates = append(predicates, banktranslation.NameLT(*i.NameLT))
+	}
+	if i.NameLTE != nil {
+		predicates = append(predicates, banktranslation.NameLTE(*i.NameLTE))
+	}
+	if i.NameContains != nil {
+		predicates = append(predicates, banktranslation.NameContains(*i.NameContains))
+	}
+	if i.NameHasPrefix != nil {
+		predicates = append(predicates, banktranslation.NameHasPrefix(*i.NameHasPrefix))
+	}
+	if i.NameHasSuffix != nil {
+		predicates = append(predicates, banktranslation.NameHasSuffix(*i.NameHasSuffix))
+	}
+	if i.NameEqualFold != nil {
+		predicates = append(predicates, banktranslation.NameEqualFold(*i.NameEqualFold))
+	}
+	if i.NameContainsFold != nil {
+		predicates = append(predicates, banktranslation.NameContainsFold(*i.NameContainsFold))
+	}
+	if i.Description != nil {
+		predicates = append(predicates, banktranslation.DescriptionEQ(*i.Description))
+	}
+	if i.DescriptionNEQ != nil {
+		predicates = append(predicates, banktranslation.DescriptionNEQ(*i.DescriptionNEQ))
+	}
+	if len(i.DescriptionIn) > 0 {
+		predicates = append(predicates, banktranslation.DescriptionIn(i.DescriptionIn...))
+	}
+	if len(i.DescriptionNotIn) > 0 {
+		predicates = append(predicates, banktranslation.DescriptionNotIn(i.DescriptionNotIn...))
+	}
+	if i.DescriptionGT != nil {
+		predicates = append(predicates, banktranslation.DescriptionGT(*i.DescriptionGT))
+	}
+	if i.DescriptionGTE != nil {
+		predicates = append(predicates, banktranslation.DescriptionGTE(*i.DescriptionGTE))
+	}
+	if i.DescriptionLT != nil {
+		predicates = append(predicates, banktranslation.DescriptionLT(*i.DescriptionLT))
+	}
+	if i.DescriptionLTE != nil {
+		predicates = append(predicates, banktranslation.DescriptionLTE(*i.DescriptionLTE))
+	}
+	if i.DescriptionContains != nil {
+		predicates = append(predicates, banktranslation.DescriptionContains(*i.DescriptionContains))
+	}
+	if i.DescriptionHasPrefix != nil {
+		predicates = append(predicates, banktranslation.DescriptionHasPrefix(*i.DescriptionHasPrefix))
+	}
+	if i.DescriptionHasSuffix != nil {
+		predicates = append(predicates, banktranslation.DescriptionHasSuffix(*i.DescriptionHasSuffix))
+	}
+	if i.DescriptionEqualFold != nil {
+		predicates = append(predicates, banktranslation.DescriptionEqualFold(*i.DescriptionEqualFold))
+	}
+	if i.DescriptionContainsFold != nil {
+		predicates = append(predicates, banktranslation.DescriptionContainsFold(*i.DescriptionContainsFold))
+	}
+
+	if i.HasBank != nil {
+		p := banktranslation.HasBank()
+		if !*i.HasBank {
+			p = banktranslation.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasBankWith) > 0 {
+		with := make([]predicate.Bank, 0, len(i.HasBankWith))
+		for _, w := range i.HasBankWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasBankWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, banktranslation.HasBankWith(with...))
+	}
+	switch len(predicates) {
+	case 0:
+		return nil, ErrEmptyBankTranslationWhereInput
+	case 1:
+		return predicates[0], nil
+	default:
+		return banktranslation.And(predicates...), nil
 	}
 }
 

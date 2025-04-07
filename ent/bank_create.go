@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"mybanks-api/ent/bank"
+	"mybanks-api/ent/banktranslation"
 	"mybanks-api/ent/currencyrate"
 	"mybanks-api/ent/offer"
 
@@ -89,6 +90,21 @@ func (bc *BankCreate) AddOffers(o ...*Offer) *BankCreate {
 		ids[i] = o[i].ID
 	}
 	return bc.AddOfferIDs(ids...)
+}
+
+// AddTranslationIDs adds the "translations" edge to the BankTranslation entity by IDs.
+func (bc *BankCreate) AddTranslationIDs(ids ...int) *BankCreate {
+	bc.mutation.AddTranslationIDs(ids...)
+	return bc
+}
+
+// AddTranslations adds the "translations" edges to the BankTranslation entity.
+func (bc *BankCreate) AddTranslations(b ...*BankTranslation) *BankCreate {
+	ids := make([]int, len(b))
+	for i := range b {
+		ids[i] = b[i].ID
+	}
+	return bc.AddTranslationIDs(ids...)
 }
 
 // Mutation returns the BankMutation object of the builder.
@@ -198,6 +214,22 @@ func (bc *BankCreate) createSpec() (*Bank, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(offer.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := bc.mutation.TranslationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   bank.TranslationsTable,
+			Columns: []string{bank.TranslationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(banktranslation.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

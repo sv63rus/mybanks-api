@@ -22,6 +22,28 @@ var (
 		Columns:    BanksColumns,
 		PrimaryKey: []*schema.Column{BanksColumns[0]},
 	}
+	// BankTranslationsColumns holds the columns for the "bank_translations" table.
+	BankTranslationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "locale", Type: field.TypeString},
+		{Name: "name", Type: field.TypeString},
+		{Name: "description", Type: field.TypeString},
+		{Name: "bank_id", Type: field.TypeInt},
+	}
+	// BankTranslationsTable holds the schema information for the "bank_translations" table.
+	BankTranslationsTable = &schema.Table{
+		Name:       "bank_translations",
+		Columns:    BankTranslationsColumns,
+		PrimaryKey: []*schema.Column{BankTranslationsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "bank_translations_banks_translations",
+				Columns:    []*schema.Column{BankTranslationsColumns[4]},
+				RefColumns: []*schema.Column{BanksColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// CurrencyRatesColumns holds the columns for the "currency_rates" table.
 	CurrencyRatesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -68,12 +90,14 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		BanksTable,
+		BankTranslationsTable,
 		CurrencyRatesTable,
 		OffersTable,
 	}
 )
 
 func init() {
+	BankTranslationsTable.ForeignKeys[0].RefTable = BanksTable
 	CurrencyRatesTable.ForeignKeys[0].RefTable = BanksTable
 	OffersTable.ForeignKeys[0].RefTable = BanksTable
 }

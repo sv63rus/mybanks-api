@@ -32,6 +32,26 @@ func (b *Bank) Offers(ctx context.Context) (result []*Offer, err error) {
 	return result, err
 }
 
+func (b *Bank) Translations(ctx context.Context) (result []*BankTranslation, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = b.NamedTranslations(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = b.Edges.TranslationsOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = b.QueryTranslations().All(ctx)
+	}
+	return result, err
+}
+
+func (bt *BankTranslation) Bank(ctx context.Context) (*Bank, error) {
+	result, err := bt.Edges.BankOrErr()
+	if IsNotLoaded(err) {
+		result, err = bt.QueryBank().Only(ctx)
+	}
+	return result, err
+}
+
 func (cr *CurrencyRate) Bank(ctx context.Context) (*Bank, error) {
 	result, err := cr.Edges.BankOrErr()
 	if IsNotLoaded(err) {
